@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../repositories/supabase_repository.dart';
+import '../../repositories/group_repository.dart';
 import '../../widgets/feed_card.dart';
 
 class HomeFeedScreen extends StatefulWidget {
@@ -10,7 +10,7 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  final _repository = SupabaseRepository();
+  final _repository = GroupRepository();
   List<dynamic> _feeds = [];
   bool _isLoading = true;
 
