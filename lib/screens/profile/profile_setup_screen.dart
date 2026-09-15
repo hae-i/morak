@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../group/my_group_screen.dart'; // 💡 내 모임 화면 import
+import '../main_skeleton.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -23,18 +23,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) throw '로그인 정보가 없습니다.';
 
-      // 🌟 핵심: 입력받은 닉네임으로 public.users 테이블에 드디어 정식 등록!
+      // public.users 테이블에 등록!
       await Supabase.instance.client.from('users').insert({
         'id': currentUser.id,
         'display_name': nickname,
-        // profile_image_url 은 나중에 추가 기능으로 넣기 위해 일단 비워둡니다.
       });
 
-      // 등록 성공 시 '내 모임' 화면으로 완전 이동! (뒤로가기 방지)
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MyGroupScreen()),
+          MaterialPageRoute(builder: (context) => const MainSkeleton()),
         );
       }
     } catch (e) {
@@ -62,7 +60,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         title: const Text('환영합니다! 🎉', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false, // 구글 로그인을 통과했으니 뒤로가기 버튼 숨김
+        // 🌟 핵심: 우리가 직접 만든 뒤로가기 버튼!
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: Colors.grey[800]),
+          onPressed: () async {
+            // 버튼을 누르면 구글/수파베이스 로그아웃!
+            // -> AuthGate가 이를 감지하고 자동으로 LoginScreen으로 돌려보냅니다.
+            await Supabase.instance.client.auth.signOut();
+          },
+        ),
       ),
       body: SafeArea(
         child: Padding(

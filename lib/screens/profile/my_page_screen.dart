@@ -1,9 +1,41 @@
 import 'package:flutter/material.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // --- 마이페이지 (프로필 및 설정) 화면 ---
-class MyPageScreen extends StatelessWidget {
-  const MyPageScreen();
+class MyPageScreen extends StatefulWidget {
+  const MyPageScreen({super.key});
+
+  @override
+  State<MyPageScreen> createState() => _MyPageScreenState();
+}
+class _MyPageScreenState extends State<MyPageScreen> {
+  String _nickname = '로딩중...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    // users 테이블에서 내 닉네임 가져오기
+    final data = await Supabase.instance.client
+        .from('users')
+        .select('display_name')
+        .eq('id', user.id)
+        .single();
+
+    setState(() {
+      _nickname = data['display_name'];
+    });
+  }
+
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -1,14 +1,11 @@
-import 'dart:async'; // 👈 감지기를 위해 추가
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../group/my_group_screen.dart';
-import '../profile/profile_setup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -16,63 +13,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isGoogleInitialized = false;
-  StreamSubscription<AuthState>? _authStateSubscription; // 💡 로그인 상태 감지기!
-
-  @override
-  void initState() {
-    super.initState();
-    // 화면이 켜지자마자 감지기 작동 시작!
-    _setupAuthListener();
-  }
-
-  // 🌟 핵심: 로그인 상태를 24시간 감시하는 레이더!
-  void _setupAuthListener() {
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-      final session = data.session;
-
-      // 누군가 로그인에 성공했거나, 웹 새로고침 후 로그인 상태가 유지되어 있다면?
-      if (session != null) {
-        // 즉시 DB를 뒤져서 닉네임 설정 여부를 확인하고 화면 이동!
-        await _checkUserAndRoute(session.user.id);
-      }
-    });
-  }
-
-  // 길잡이(라우팅) 로직을 아예 따로 함수로 뺐습니다!
-  Future<void> _checkUserAndRoute(String userId) async {
-    try {
-      final userData = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-
-      if (mounted) {
-        if (userData == null) {
-          // 처음 온 유저 👉 닉네임 설정
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
-          );
-        } else {
-          // 기존 유저 👉 내 모임
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MyGroupScreen()),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('라우팅 에러: $e');
-    }
-  }
-
-  @override
-  void dispose() {
-    // 화면이 꺼질 땐 감지기도 꺼주기
-    _authStateSubscription?.cancel();
-    super.dispose();
-  }
 
   Future<void> _googleSignIn() async {
     setState(() => _isLoading = true);
@@ -82,6 +22,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: 'http://localhost:3000',
+          // 🌟 핵심 1 (웹용): 구글아, 기억력 지우고 무조건 '계정 선택 창' 띄워!
+          queryParams: {
+            'prompt': 'select_account',
+          },
         );
       } else {
         const webClientId = '403079315316-hq0rgut0fqs2o4igfp3q7hponq31poq7.apps.googleusercontent.com';
@@ -91,6 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
           await googleSignIn.initialize(serverClientId: webClientId);
           _isGoogleInitialized = true;
         }
+
+        // 🌟 핵심 2 (앱용): 기존에 남아있는 구글 앱 로그인 찌꺼기 완벽하게 날리기!
+        await googleSignIn.signOut();
 
         final GoogleSignInAccount? googleUser = await googleSignIn.authenticate();
         if (googleUser == null) {
@@ -103,7 +50,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (idToken == null) throw 'ID 토큰을 찾을 수 없어요.';
 
-        // 💡 여기서 로그인이 완료되면? 위에 만들어둔 '감지기'가 알아서 반응해서 화면을 넘겨줍니다!
         await Supabase.instance.client.auth.signInWithIdToken(
           provider: OAuthProvider.google,
           idToken: idToken,

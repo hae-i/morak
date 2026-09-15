@@ -5,7 +5,11 @@ class MeetupCreateScreen extends StatefulWidget {
   final String groupId;
   final Map<String, dynamic>? initialMeetup;
 
-  const MeetupCreateScreen({super.key, required this.groupId, this.initialMeetup});
+  const MeetupCreateScreen({
+    super.key,
+    required this.groupId,
+    this.initialMeetup,
+  });
 
   @override
   State<MeetupCreateScreen> createState() => _MeetupCreateScreenState();
@@ -50,8 +54,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         .from('group_members')
         .select()
         .eq('group_id', widget.groupId)
-        .order('created_at', ascending: true);
-
+        .order('joined_at', ascending: true);
     if (mounted) {
       setState(() {
         _members = List<Map<String, dynamic>>.from(data);
@@ -80,7 +83,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -131,36 +134,55 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
       } else {
         // 2. 기존 만남 기록 수정하기
         currentMeetupId = widget.initialMeetup!['id'];
-        await Supabase.instance.client.from('meetups').update(meetupData).eq('id', currentMeetupId);
+        await Supabase.instance.client
+            .from('meetups')
+            .update(meetupData)
+            .eq('id', currentMeetupId);
 
         // 수정할 땐 기존 출석 기록 싹 날려버리고 새로 쓸 준비!
-        await Supabase.instance.client.from('attendances').delete().eq('meetup_id', currentMeetupId);
+        await Supabase.instance.client
+            .from('attendances')
+            .delete()
+            .eq('meetup_id', currentMeetupId);
       }
 
       // 3. 선택된 참석자가 있다면 출석부(attendances)에 데이터 꽂아넣기!
       if (_selectedMemberIds.isNotEmpty) {
-        final attendanceData = _selectedMemberIds.map((memberId) => {
-          'meetup_id': currentMeetupId,
-          'member_id': memberId,
-        }).toList();
+        final attendanceData = _selectedMemberIds
+            .map(
+              (memberId) => {
+                'meetup_id': currentMeetupId,
+                'member_id': memberId,
+              },
+            )
+            .toList();
 
-        await Supabase.instance.client.from('attendances').insert(attendanceData);
+        await Supabase.instance.client
+            .from('attendances')
+            .insert(attendanceData);
       }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.initialMeetup == null ? '🎉 만남 기록과 출석부가 저장되었어요!' : '🎉 기록과 출석부가 수정되었어요!'),
+            content: Text(
+              widget.initialMeetup == null
+                  ? '🎉 만남 기록과 출석부가 저장되었어요!'
+                  : '🎉 기록과 출석부가 수정되었어요!',
+            ),
             backgroundColor: const Color(0xFFFF8A80),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('저장 실패: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -173,9 +195,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(isEditMode ? '기록 수정하기 ✏️' : '기록 남기기 ✏️'),
-      ),
+      appBar: AppBar(title: Text(isEditMode ? '기록 수정하기 ✏️' : '기록 남기기 ✏️')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -188,14 +208,24 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       '${_selectedDate.year}. ${_selectedDate.month.toString().padLeft(2, '0')}. ${_selectedDate.day.toString().padLeft(2, '0')}',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[800], fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[800],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     Icon(Icons.calendar_month_rounded, color: Colors.grey[400]),
                   ],
@@ -208,40 +238,49 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             _buildSectionTitle('누가 참석했나요?'),
             const SizedBox(height: 12),
             _members.isEmpty
-                ? Text('등록된 멤버가 없어요.\n이전 화면에서 멤버를 먼저 추가해주세요!', style: TextStyle(color: Colors.grey[500]))
+                ? Text(
+                    '등록된 멤버가 없어요.\n이전 화면에서 멤버를 먼저 추가해주세요!',
+                    style: TextStyle(color: Colors.grey[500]),
+                  )
                 : Wrap(
-              spacing: 8.0, // 가로 간격
-              runSpacing: 8.0, // 줄바꿈 시 세로 간격
-              children: _members.map((member) {
-                final memberId = member['id'].toString();
-                final isSelected = _selectedMemberIds.contains(memberId);
+                    spacing: 8.0, // 가로 간격
+                    runSpacing: 8.0, // 줄바꿈 시 세로 간격
+                    children: _members.map((member) {
+                      final memberId = member['id'].toString();
+                      final isSelected = _selectedMemberIds.contains(memberId);
 
-                return FilterChip(
-                  label: Text(member['display_name']),
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey[700],
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      return FilterChip(
+                        label: Text(member['display_name']),
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.grey[700],
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                        selected: isSelected,
+                        onSelected: (bool selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedMemberIds.add(memberId);
+                            } else {
+                              _selectedMemberIds.remove(memberId);
+                            }
+                          });
+                        },
+                        selectedColor: const Color(0xFFFF8A80),
+                        checkmarkColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: isSelected
+                                ? Colors.transparent
+                                : Colors.grey[300]!,
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  selected: isSelected,
-                  onSelected: (bool selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedMemberIds.add(memberId);
-                      } else {
-                        _selectedMemberIds.remove(memberId);
-                      }
-                    });
-                  },
-                  selectedColor: const Color(0xFFFF8A80),
-                  checkmarkColor: Colors.white,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[300]!),
-                  ),
-                );
-              }).toList(),
-            ),
             const SizedBox(height: 24),
 
             // 3. 장소 & 메뉴
@@ -263,15 +302,21 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 onPressed: _isLoading ? null : _saveMeetup,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF8A80),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   elevation: 0,
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  isEditMode ? '수정 완료' : '기록 완료',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+                        isEditMode ? '수정 완료' : '기록 완료',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
@@ -284,7 +329,11 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey[800],
+      ),
     );
   }
 
@@ -296,7 +345,10 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         hintStyle: TextStyle(color: Colors.grey[400]),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.transparent),

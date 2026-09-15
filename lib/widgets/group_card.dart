@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../utils/color_utils.dart'; // 방금 만든 유틸 임포트
+
+import '../utils/color_utils.dart';
+import '../models/group_model.dart';
 
 class GroupCard extends StatelessWidget {
-  final Map<String, dynamic> group;
+  final GroupModel group;
   final String role;
   final VoidCallback onTap;
 
@@ -15,52 +17,95 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String? colorRaw = group['theme_color'];
-    final int colorInt = colorRaw != null
-        ? (int.tryParse(colorRaw) ?? Colors.grey[200]!.value)
-        : Colors.grey[200]!.value;
-    final themeColor = Color(colorInt);
+    // 🌟 리팩토링된 ColorUtils 사용!
+    final groupColor = ColorUtils.stringToColor(group.themeColor);
+    // 기본 회색인지 확인 (그림자 효과를 위해)
+    final isDefaultColor = groupColor == Colors.grey[200]!;
 
-    final themeEmoji = group['theme_emoji'] ?? '☁️';
-    final groupName = group['name'] ?? '이름 없는 모임';
-    final textColor = ColorUtils.getTextColor(themeColor); // 유틸 사용!
-
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: themeColor,
-          borderRadius: BorderRadius.circular(24),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+            BoxShadow(
+              color: isDefaultColor
+                  ? Colors.black.withOpacity(0.02)
+                  : groupColor.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              width: 56, height: 56,
-              decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-              child: Center(child: Text(themeEmoji, style: const TextStyle(fontSize: 28))),
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: isDefaultColor
+                    ? Colors.grey[200]
+                    : groupColor.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: group.themeEmoji.isNotEmpty
+                    ? Text(
+                        group.themeEmoji,
+                        style: const TextStyle(fontSize: 28),
+                      )
+                    : Icon(
+                        Icons.groups_rounded,
+                        color: isDefaultColor ? Colors.grey[400] : groupColor,
+                        size: 32,
+                      ),
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(groupName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (role == 'host') ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
-                      child: Text('👑 방장', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                  Text(
+                    group.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (role == 'host') ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '👑 방장',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: textColor.withOpacity(0.5), size: 28),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey[300]),
           ],
         ),
       ),
