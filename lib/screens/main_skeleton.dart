@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'home_feed_screen.dart';
-import 'my_group_screen.dart';
-import 'my_page_screen.dart';
+import 'feed/home_feed_screen.dart';
+import 'group/my_group_screen.dart';
+import 'profile/my_page_screen.dart';
 
 // 상태(선택된 탭) 변화가 있는 메인 뼈대 화면
 class MainSkeleton extends StatefulWidget {

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/main_skeleton.dart';
-import 'screens/login_screen.dart';
-import 'screens/my_group_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/group/my_group_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'my_group_screen.dart'; // 💡 내 모임 화면 import
+import '../group/my_group_screen.dart'; // 💡 내 모임 화면 import
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
