@@ -71,19 +71,77 @@ class GroupRepository {
     await _client.from('groups').delete().eq('id', groupId);
   }
 
-  // 5. 특정 모임의 상세 정보와 멤버 목록
-  Future<Map<String, dynamic>> fetchGroupDetail(String groupId) async {
-    final groupData = await _client
+  // 5. 🌟 상세 화면 로드 (복잡한 랭킹 계산까지 레포지토리가 다 해서 넘겨줍니다!)
+  Future<Map<String, dynamic>> fetchGroupDetailWithRanking(
+    String groupId,
+  ) async {
+    final groupRes = await _client
         .from('groups')
         .select()
         .eq('id', groupId)
         .single();
-    final membersData = await _client
+    final meetupsRes = await _client
+        .from('meetups')
+        .select('*, attendances(member_id)')
+        .eq('group_id', groupId)
+        .order('meet_date', ascending: false);
+    final membersRes = await _client
         .from('group_members')
         .select()
         .eq('group_id', groupId)
         .order('joined_at', ascending: true);
 
-    return {'group': GroupModel.fromJson(groupData), 'members': membersData};
+    int totalMeetups = meetupsRes.length;
+    Map<String, int> attendanceCounts = {};
+    for (var meetup in meetupsRes) {
+      for (var att in meetup['attendances'] as List? ?? []) {
+        String mId = att['member_id'].toString();
+        attendanceCounts[mId] = (attendanceCounts[mId] ?? 0) + 1;
+      }
+    }
+
+    List<Map<String, dynamic>> ranked = [];
+    for (var m in membersRes) {
+      String mId = m['id'].toString();
+      int attended = attendanceCounts[mId] ?? 0;
+      ranked.add({
+        ...m,
+        'attended_count': attended,
+        'attendance_rate': totalMeetups > 0
+            ? (attended / totalMeetups) * 100
+            : 0.0,
+      });
+    }
+
+    // 랭킹 정렬
+    ranked.sort((a, b) {
+      int r = b['attendance_rate'].compareTo(a['attendance_rate']);
+      return r != 0 ? r : a['display_name'].compareTo(b['display_name']);
+    });
+
+    return {
+      'group': groupRes,
+      'meetups': meetupsRes,
+      'members': membersRes,
+      'rankedMembers': ranked,
+    };
+  }
+
+  // 6. 🌟 만남 기록 삭제
+  Future<void> deleteMeetup(String meetupId) async {
+    await _client.from('meetups').delete().eq('id', meetupId);
+  }
+
+  // 7. 🌟 멤버 영입 (수동 추가)
+  Future<void> addMember(String groupId, String displayName) async {
+    await _client.from('group_members').insert({
+      'group_id': groupId,
+      'display_name': displayName,
+    });
+  }
+
+  // 8. 🌟 멤버 내보내기
+  Future<void> removeMember(String memberId) async {
+    await _client.from('group_members').delete().eq('id', memberId);
   }
 }
