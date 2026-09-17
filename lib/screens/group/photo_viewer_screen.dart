@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../models/meetup_model.dart';
+import '../../models/member_model.dart';
 import 'meetup_detail_screen.dart';
 
 class PhotoViewerScreen extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
-  final Map<String, dynamic>? meetup;
-  final List<Map<String, dynamic>> groupMembers;
+  final MeetupModel? meetup;
+  final List<MemberModel> groupMembers;
   final Color activeColor;
 
   const PhotoViewerScreen({
@@ -50,10 +52,10 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // 💡 애니메이션 겹침 방지를 위해 투명 처리
+        backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.transparent),
         elevation: 0,
-        toolbarHeight: 0, // 상단바를 완전히 숨기고 AnimatedPositioned로 대체!
+        toolbarHeight: 0,
       ),
       body: Stack(
         children: [

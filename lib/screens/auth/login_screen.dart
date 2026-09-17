@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../constants/app_constants.dart'; // 🌟 상수 임포트
+import '../../constants/app_constants.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -76,7 +76,6 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 width: 80,
                 height: 80,
-                // 🌟 하드코딩된 색상을 AppConstants.primaryColor 로 싹 교체!
                 decoration: BoxDecoration(
                   color: AppConstants.primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,

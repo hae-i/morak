@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
-import '../../utils/color_utils.dart';
+import '../../models/meetup_model.dart';
+import '../../models/member_model.dart';
 import 'photo_viewer_screen.dart';
 
 class MeetupDetailScreen extends StatelessWidget {
-  final Map<String, dynamic> meetup;
-  final List<Map<String, dynamic>> groupMembers;
+  final MeetupModel meetup;
+  final List<MemberModel> groupMembers;
   final Color activeColor;
 
   const MeetupDetailScreen({
@@ -16,32 +17,25 @@ class MeetupDetailScreen extends StatelessWidget {
     required this.activeColor,
   });
 
-  String _formatDate(String? rawDate) {
-    if (rawDate == null) return '';
+  String _formatDate(String date) {
     try {
-      final dt = DateTime.parse(rawDate);
+      final dt = DateTime.parse(date);
       return '${dt.year}년 ${dt.month}월 ${dt.day}일';
     } catch (_) {
-      return rawDate;
+      return date;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final title = [
-      meetup['location'] ?? '',
-      meetup['menu'] ?? '',
-    ].where((s) => s.toString().isNotEmpty).join(' · ');
-    final photos = meetup['photos'] as List<dynamic>? ?? [];
-
-    // 🌟 사진 URL 리스트 추출
-    final imageUrls = photos.map((e) => e.toString()).toList();
-
-    final attendanceIds = (meetup['attendances'] as List<dynamic>? ?? [])
-        .map((att) => att['member_id'].toString())
-        .toList();
+      meetup.location ?? '',
+      meetup.menu ?? '',
+    ].where((s) => s.isNotEmpty).join(' · ');
+    final photos = meetup.photos;
+    final attendanceIds = meetup.attendanceMemberIds;
     final attendees = groupMembers
-        .where((m) => attendanceIds.contains(m['id'].toString()))
+        .where((m) => attendanceIds.contains(m.id))
         .toList();
 
     return Scaffold(
@@ -65,7 +59,7 @@ class MeetupDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _formatDate(meetup['meet_date']),
+                    _formatDate(meetup.date),
                     style: TextStyle(
                       color: Colors.grey[700],
                       fontWeight: FontWeight.bold,
@@ -107,7 +101,7 @@ class MeetupDetailScreen extends StatelessWidget {
                     final member = attendees[index];
                     return Chip(
                       label: Text(
-                        member['display_name'],
+                        member.displayName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       backgroundColor: Colors.grey[100],
@@ -131,15 +125,14 @@ class MeetupDetailScreen extends StatelessWidget {
                   crossAxisSpacing: 8,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: imageUrls.length,
+                  itemCount: photos.length,
                   itemBuilder: (context, index) {
                     return GestureDetector(
-                      // 🌟 리스트 전체와 터치한 위치(index)를 넘겨줍니다!
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => PhotoViewerScreen(
-                            imageUrls: imageUrls,
+                            imageUrls: photos,
                             initialIndex: index,
                             groupMembers: groupMembers,
                             activeColor: activeColor,
@@ -148,10 +141,7 @@ class MeetupDetailScreen extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          imageUrls[index],
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.network(photos[index], fit: BoxFit.cover),
                       ),
                     );
                   },

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../constants/app_constants.dart'; // 🌟 상수 임포트
-import '../../repositories/group_repository.dart';
-import '../../widgets/feed_card.dart';
+import '../../constants/app_constants.dart';
+import '../../repositories/meetup_repository.dart';
+import '../../models/meetup_model.dart';
+import '../../widgets/feed/feed_card.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -11,8 +12,8 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  final _repository = GroupRepository();
-  List<dynamic> _feeds = [];
+  final _meetupRepo = MeetupRepository();
+  List<MeetupModel> _feeds = [];
   bool _isLoading = true;
 
   @override
@@ -24,7 +25,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Future<void> _loadFeeds() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _repository.fetchHomeFeeds();
+      final data = await _meetupRepo.fetchHomeFeeds();
       if (mounted) setState(() => _feeds = data);
     } catch (e) {
       if (mounted)
@@ -50,13 +51,13 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadFeeds,
-        color: AppConstants.primaryColor, // 🌟 하드코딩 색상 교체!
+        color: AppConstants.primaryColor,
         child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(
                   color: AppConstants.primaryColor,
                 ),
-              ) // 🌟 교체!
+              )
             : _feeds.isEmpty
             ? Center(
                 child: Column(

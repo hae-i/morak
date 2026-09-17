@@ -1,12 +1,10 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../utils/ui_utils.dart'; // 🌟 공통 팝업
-import '../../widgets/common_widgets.dart'; // 🌟 공통 위젯
+import '../../constants/app_constants.dart';
+import '../../utils/ui_utils.dart';
+import '../../widgets/common/common_widgets.dart';
+import '../../repositories/user_repository.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -23,6 +21,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final ImagePicker _picker = ImagePicker();
   XFile? _localProfileImage;
   String? _existingProfileImageUrl;
+  final _userRepo = UserRepository();
 
   @override
   void initState() {
@@ -38,20 +37,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Future<void> _loadMyProfile() async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      final data = await Supabase.instance.client
-          .from('users')
-          .select('display_name, profile_image_url, birthday')
-          .eq('id', user.id)
-          .single();
-      setState(() {
-        _nicknameController.text = data['display_name'] ?? '';
-        _existingProfileImageUrl = data['profile_image_url'];
-        if (data['birthday'] != null)
-          _selectedBirthday = DateTime.parse(data['birthday']);
-        _isLoading = false;
-      });
+      final profile = await _userRepo.fetchMyGlobalProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _nicknameController.text = profile.displayName;
+          _existingProfileImageUrl = profile.profileImageUrl;
+          if (profile.birthday != null)
+            _selectedBirthday = DateTime.parse(profile.birthday!);
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -59,13 +54,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final pickedFile = await _picker.pickImage(
+      final picked = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 512,
         maxHeight: 512,
         imageQuality: 80,
       );
-      if (pickedFile != null) setState(() => _localProfileImage = pickedFile);
+      if (picked != null) setState(() => _localProfileImage = picked);
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
@@ -81,7 +76,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFFFF8A80)),
+          colorScheme: const ColorScheme.light(
+            primary: AppConstants.primaryColor,
+          ),
         ),
         child: child!,
       ),
@@ -99,37 +96,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       );
       return;
     }
-
     setState(() => _isSaving = true);
     try {
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser == null) throw '로그인 정보가 없습니다.';
-      String? finalImageUrl = _existingProfileImageUrl;
-
-      if (_localProfileImage != null) {
-        final ext = _localProfileImage!.name.split('.').last.toLowerCase();
-        final fileName = '${currentUser.id}.$ext';
-        await Supabase.instance.client.storage
-            .from('profiles')
-            .uploadBinary(
-              'avatars/$fileName',
-              await _localProfileImage!.readAsBytes(),
-              fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
-            );
-        finalImageUrl = Supabase.instance.client.storage
-            .from('profiles')
-            .getPublicUrl('avatars/$fileName');
-      }
-
-      await Supabase.instance.client
-          .from('users')
-          .update({
-            'display_name': nickname,
-            'birthday': _selectedBirthday?.toIso8601String().split('T').first,
-            if (finalImageUrl != null) 'profile_image_url': finalImageUrl,
-          })
-          .eq('id', currentUser.id);
-
+      await _userRepo.updateMyGlobalProfile(
+        nickname: nickname,
+        birthday: _selectedBirthday?.toIso8601String().split('T').first,
+        existingImageUrl: _existingProfileImageUrl,
+        newImageFile: _localProfileImage,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('🎉 프로필이 수정되었습니다!')));
@@ -159,14 +133,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
-            )
+              child: CircularProgressIndicator(
+                color: AppConstants.primaryColor,
+              ),
+            ) // 🌟 색상 변경!
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 💡 EditableAvatar 레고 블록 도입!
                   Center(
                     child: EditableAvatar(
                       radius: 50,
@@ -174,7 +149,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       localImage: _localProfileImage,
                       networkImageUrl: _existingProfileImageUrl,
                       fallbackIcon: Icons.person_rounded,
-                      // 💡 UiUtils 카톡 액션 메뉴 연동!
                       onTap: () => UiUtils.showImageActionMenu(
                         context: context,
                         onPick: _pickImage,
@@ -189,16 +163,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // 💡 SectionTitle 과 CustomTextField 도입!
-                  const SectionTitle('닉네임'), const SizedBox(height: 8),
+                  const SectionTitle('닉네임'),
+                  const SizedBox(height: 8),
                   CustomTextField(
                     controller: _nicknameController,
                     hint: '예: 모락대장',
                   ),
                   const SizedBox(height: 24),
-
-                  const SectionTitle('생년월일'), const SizedBox(height: 8),
+                  const SectionTitle('생년월일'),
+                  const SizedBox(height: 8),
                   InkWell(
                     onTap: _pickBirthday,
                     borderRadius: BorderRadius.circular(16),
@@ -235,14 +208,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     ),
                   ),
                   const SizedBox(height: 48),
-
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _updateProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8A80),
+                        backgroundColor: AppConstants.primaryColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),

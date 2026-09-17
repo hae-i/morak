@@ -6,8 +6,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../constants/app_constants.dart';
 import '../../../repositories/group_repository.dart';
-import '../../../widgets/profile_setup_sheet.dart';
+import '../profile/profile_setup_sheet.dart';
 import '../../../utils/ui_utils.dart';
+import '../../../models/member_model.dart';
+import '../common/common_widgets.dart';
 
 // ==========================================
 // 🌟 모임 정보 수정 바텀 시트
@@ -122,16 +124,18 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
       final colorStr = _selectedColorIndex != null
           ? '#${AppConstants.themeColors[_selectedColorIndex!].value.toRadixString(16).substring(2).toUpperCase()}'
           : null;
+
       await widget.repository.updateGroup(
-        widget.groupId,
-        name,
-        colorStr,
-        _selectedEmoji,
-        _localCover,
-        _existingCoverUrl,
-        _localLogo,
-        _existingLogoUrl,
+        groupId: widget.groupId,
+        name: name,
+        hexColor: colorStr,
+        emoji: _selectedEmoji,
+        newCoverImage: _localCover,
+        existingCoverUrl: _existingCoverUrl,
+        newLogoImage: _localLogo,
+        existingLogoUrl: _existingLogoUrl,
       );
+
       if (mounted) {
         Navigator.pop(context);
         widget.onUpdated();
@@ -320,7 +324,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
 // 🌟 모임 멤버 프로필 수정 바텀 시트
 // ==========================================
 class GroupProfileEditSheet extends StatefulWidget {
-  final Map<String, dynamic> memberData;
+  final MemberModel memberData;
   final GroupRepository repository;
   final VoidCallback onUpdated;
 
@@ -345,9 +349,9 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
   @override
   void initState() {
     super.initState();
-    _nicknameController.text = widget.memberData['display_name'] ?? '';
-    _existingImageUrl = widget.memberData['profile_image_url'];
-    _isBirthdayPublic = widget.memberData['is_birthday_public'] ?? true;
+    _nicknameController.text = widget.memberData.displayName;
+    _existingImageUrl = widget.memberData.profileImageUrl;
+    _isBirthdayPublic = widget.memberData.isBirthdayPublic;
   }
 
   @override
@@ -377,8 +381,9 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
     if (nickname.isEmpty) return;
     setState(() => _isSaving = true);
     try {
+      // 🌟 memberData.id 로 접근!
       await widget.repository.updateGroupMemberProfile(
-        memberId: widget.memberData['id'],
+        memberId: widget.memberData.id,
         displayName: nickname,
         existingImageUrl: _existingImageUrl,
         newImageFile: _localImage,
@@ -448,27 +453,14 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: _localImage != null
-                  ? ClipOval(
-                      child: kIsWeb
-                          ? Image.network(_localImage!.path, fit: BoxFit.cover)
-                          : Image.file(
-                              File(_localImage!.path),
-                              fit: BoxFit.cover,
-                            ),
-                    )
-                  : (_existingImageUrl != null
-                        ? ClipOval(
-                            child: Image.network(
-                              _existingImageUrl!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Icon(
-                            Icons.person_rounded,
-                            size: 40,
-                            color: Colors.grey[400],
-                          )),
+              child: EditableAvatar(
+                radius: 45,
+                backgroundColor: Colors.grey[200]!,
+                localImage: _localImage,
+                networkImageUrl: _existingImageUrl,
+                fallbackIcon: Icons.person_rounded,
+                onTap: () => (),
+              ),
             ),
           ),
           const SizedBox(height: 24),

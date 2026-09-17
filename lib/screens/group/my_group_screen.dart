@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../repositories/group_repository.dart';
-import '../../widgets/group_card.dart';
+import '../../widgets/group/group_card.dart';
 import '../group/group_create_screen.dart';
 import '../group/group_detail_screen.dart';
 
@@ -15,7 +15,7 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
   bool _isLoading = true;
   List<dynamic> _myGroups = [];
 
-  final _groupRepository = GroupRepository();
+  final _groupRepo = GroupRepository();
 
   @override
   void initState() {
@@ -26,7 +26,7 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
   Future<void> _loadGroups() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _groupRepository.fetchMyGroups();
+      final data = await _groupRepo.fetchMyGroups();
       setState(() => _myGroups = data);
     } catch (e) {
       if (mounted)

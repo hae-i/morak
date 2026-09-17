@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../utils/color_utils.dart';
-import '../models/group_model.dart';
+import '../../utils/color_utils.dart';
+import '../../models/group_model.dart';
 
 class GroupCard extends StatelessWidget {
   final GroupModel group;
@@ -17,9 +17,7 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 리팩토링된 ColorUtils 사용!
     final groupColor = ColorUtils.stringToColor(group.themeColor);
-    // 기본 회색인지 확인 (그림자 효과를 위해)
     final isDefaultColor = groupColor == Colors.grey[200]!;
 
     return InkWell(
@@ -52,9 +50,10 @@ class GroupCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: group.themeEmoji.isNotEmpty
+                child:
+                    (group.themeEmoji != null && group.themeEmoji!.isNotEmpty)
                     ? Text(
-                        group.themeEmoji,
+                        group.themeEmoji!,
                         style: const TextStyle(fontSize: 28),
                       )
                     : Icon(

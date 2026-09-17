@@ -1,13 +1,11 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../constants/app_constants.dart';
 import '../main_skeleton.dart';
-import '../../utils/ui_utils.dart'; // 🌟 공통 팝업
-import '../../widgets/common_widgets.dart'; // 🌟 공통 위젯
+import '../../utils/ui_utils.dart';
+import '../../widgets/common/common_widgets.dart';
+import '../../repositories/user_repository.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -22,6 +20,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   final ImagePicker _picker = ImagePicker();
   XFile? _profileImage;
+  final _userRepo = UserRepository();
 
   @override
   void dispose() {
@@ -53,7 +52,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFFFF8A80)),
+          colorScheme: const ColorScheme.light(
+            primary: AppConstants.primaryColor,
+          ),
         ),
         child: child!,
       ),
@@ -71,35 +72,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       );
       return;
     }
-
     setState(() => _isLoading = true);
     try {
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser == null) throw '로그인 정보가 없습니다.';
-      String? uploadedImageUrl;
-
-      if (_profileImage != null) {
-        final ext = _profileImage!.name.split('.').last.toLowerCase();
-        final fileName = '${currentUser.id}.$ext';
-        await Supabase.instance.client.storage
-            .from('profiles')
-            .uploadBinary(
-              'avatars/$fileName',
-              await _profileImage!.readAsBytes(),
-              fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
-            );
-        uploadedImageUrl = Supabase.instance.client.storage
-            .from('profiles')
-            .getPublicUrl('avatars/$fileName');
-      }
-
-      await Supabase.instance.client.from('users').insert({
-        'id': currentUser.id,
-        'display_name': nickname,
-        'birthday': _selectedBirthday?.toIso8601String().split('T').first,
-        if (uploadedImageUrl != null) 'profile_image_url': uploadedImageUrl,
-      });
-
+      await _userRepo.updateMyGlobalProfile(
+        nickname: nickname,
+        birthday: _selectedBirthday?.toIso8601String().split('T').first,
+        newImageFile: _profileImage,
+        isNewSetup: true,
+      );
       if (mounted)
         Navigator.pushReplacement(
           context,
@@ -128,7 +108,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: Colors.grey[800]),
-          onPressed: () async => await Supabase.instance.client.auth.signOut(),
+          onPressed: () async => await _userRepo.signOut(),
         ),
       ),
       body: SafeArea(
@@ -151,15 +131,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
               const SizedBox(height: 40),
-
-              // 💡 EditableAvatar 레고 블록 도입!
               Center(
                 child: EditableAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey[100]!,
                   localImage: _profileImage,
                   fallbackIcon: Icons.person_rounded,
-                  // 💡 UiUtils 카톡 액션 메뉴 연동!
                   onTap: () => UiUtils.showImageActionMenu(
                     context: context,
                     onPick: _pickImage,
@@ -169,13 +146,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
               const SizedBox(height: 40),
-
-              // 💡 SectionTitle 과 CustomTextField 도입!
-              const SectionTitle('닉네임'), const SizedBox(height: 8),
+              const SectionTitle('닉네임'),
+              const SizedBox(height: 8),
               CustomTextField(controller: _nicknameController, hint: '예: 모락대장'),
               const SizedBox(height: 24),
-
-              const SectionTitle('생년월일'), const SizedBox(height: 8),
+              const SectionTitle('생년월일'),
+              const SizedBox(height: 8),
               InkWell(
                 onTap: _pickBirthday,
                 borderRadius: BorderRadius.circular(16),
@@ -212,14 +188,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
               const SizedBox(height: 48),
-
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _completeSignUp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8A80),
+                    backgroundColor: AppConstants.primaryColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

@@ -5,15 +5,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../utils/color_utils.dart';
 import '../../../utils/ui_utils.dart';
 import '../../../repositories/group_repository.dart';
+import '../../../models/member_model.dart';
 
 class MemberDrawer extends StatefulWidget {
   final String groupId, groupName;
-  final List<Map<String, dynamic>> members;
+  final List<MemberModel> members;
   final VoidCallback onMembersUpdated;
   final Color activeColor;
   final bool isDefaultColor;
   final GroupRepository repository;
-  final void Function(Map<String, dynamic>) onMemberTap;
+  final void Function(MemberModel) onMemberTap;
 
   const MemberDrawer({
     super.key,
@@ -43,8 +44,10 @@ class _MemberDrawerState extends State<MemberDrawer> {
   }
 
   Future<void> _copyInviteLink() async {
+    final encodedName = Uri.encodeComponent(widget.groupName);
     final inviteLink =
-        'morak://invite?groupId=${widget.groupId}&groupName=${widget.groupName}';
+        'morak://invite?groupId=${widget.groupId}&groupName=$encodedName';
+
     await Clipboard.setData(ClipboardData(text: inviteLink));
     if (mounted) {
       Navigator.pop(context);
@@ -73,18 +76,18 @@ class _MemberDrawerState extends State<MemberDrawer> {
     }
   }
 
-  Future<void> _removeMember(Map<String, dynamic> member) async {
+  Future<void> _removeMember(MemberModel member) async {
     final confirm = await UiUtils.showBeautifulDialog(
       context: context,
       title: '멤버 내보내기',
-      content: '${member['display_name']} 님을 정말 내보내시겠습니까?',
+      content: '${member.displayName} 님을 정말 내보내시겠습니까?',
       confirmText: '내보내기',
       confirmColor: Colors.redAccent,
       icon: Icons.person_remove_rounded,
     );
     if (confirm == true) {
       try {
-        await widget.repository.removeMember(member['id']);
+        await widget.repository.removeMember(member.id);
         widget.onMembersUpdated();
       } catch (e) {
         if (mounted)
@@ -94,23 +97,21 @@ class _MemberDrawerState extends State<MemberDrawer> {
     }
   }
 
-  Future<void> _changeRole(Map<String, dynamic> member) async {
-    final currentRole = member['role'];
+  Future<void> _changeRole(MemberModel member) async {
+    final currentRole = member.role;
     final newRole = currentRole == 'host' ? 'member' : 'host';
     final actionText = newRole == 'host' ? '방장으로 승급' : '일반 멤버로 강등';
     final confirm = await UiUtils.showBeautifulDialog(
       context: context,
       title: '권한 변경',
-      content: '${member['display_name']} 님을 $actionText 시키겠습니까?',
+      content: '${member.displayName} 님을 $actionText 시키겠습니까?',
       confirmText: '변경',
-      confirmColor: widget.activeColor == Colors.grey[200]
-          ? Colors.blue
-          : widget.activeColor,
+      confirmColor: widget.isDefaultColor ? Colors.blue : widget.activeColor,
       icon: Icons.manage_accounts_rounded,
     );
     if (confirm == true) {
       try {
-        await widget.repository.updateMemberRole(member['id'], newRole);
+        await widget.repository.updateMemberRole(member.id, newRole);
         widget.onMembersUpdated();
       } catch (e) {
         if (mounted)
@@ -126,21 +127,22 @@ class _MemberDrawerState extends State<MemberDrawer> {
     final btnTextColor = widget.isDefaultColor
         ? Colors.white
         : ColorUtils.getTextColor(widget.activeColor);
-    List<Map<String, dynamic>> sortedMembers = List.from(widget.members);
+
+    // 🌟 MemberModel의 속성들로 정렬 로직 수정!
+    List<MemberModel> sortedMembers = List.from(widget.members);
     if (_sortType == 'joined') {
-      sortedMembers.sort((a, b) => a['joined_at'].compareTo(b['joined_at']));
-    } else if (_sortType == 'name') {
       sortedMembers.sort(
-        (a, b) => a['display_name'].compareTo(b['display_name']),
+        (a, b) => (a.joinedAt ?? '').compareTo(b.joinedAt ?? ''),
       );
+    } else if (_sortType == 'name') {
+      sortedMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
     } else if (_sortType == 'rate') {
       sortedMembers.sort((a, b) {
-        int r = (b['attendance_rate'] ?? 0.0).compareTo(
-          a['attendance_rate'] ?? 0.0,
-        );
-        return r != 0 ? r : a['joined_at'].compareTo(b['joined_at']);
+        int r = b.attendanceRate.compareTo(a.attendanceRate);
+        return r != 0 ? r : (a.joinedAt ?? '').compareTo(b.joinedAt ?? '');
       });
     }
+
     String sortLabel = _sortType == 'joined'
         ? '참가순'
         : (_sortType == 'name' ? '가나다순' : '참여율순');
@@ -272,22 +274,21 @@ class _MemberDrawerState extends State<MemberDrawer> {
                       itemCount: sortedMembers.length,
                       itemBuilder: (context, index) {
                         final member = sortedMembers[index];
-                        final isHost = member['role'] == 'host';
+                        final isHost = member.role == 'host';
                         final isMe =
                             currentUserId != null &&
-                            member['user_id'] == currentUserId;
-                        final String? profileImageUrl =
-                            member['profile_image_url'];
+                            member.userId == currentUserId;
+
                         return ListTile(
                           onTap: () => widget.onMemberTap(member),
                           leading: CircleAvatar(
                             backgroundColor: Colors.grey[200],
-                            backgroundImage: profileImageUrl != null
-                                ? NetworkImage(profileImageUrl)
+                            backgroundImage: member.profileImageUrl != null
+                                ? NetworkImage(member.profileImageUrl!)
                                 : null,
-                            child: profileImageUrl == null
+                            child: member.profileImageUrl == null
                                 ? Text(
-                                    isHost ? '👑' : member['display_name'][0],
+                                    isHost ? '👑' : member.displayName[0],
                                     style: TextStyle(
                                       color: Colors.grey[800],
                                       fontWeight: FontWeight.bold,
@@ -297,7 +298,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                                 : null,
                           ),
                           title: Text(
-                            member['display_name'] + (isMe ? ' (나)' : ''),
+                            member.displayName + (isMe ? ' (나)' : ''),
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           trailing: isMe

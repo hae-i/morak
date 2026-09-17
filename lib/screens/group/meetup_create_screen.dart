@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../utils/ui_utils.dart'; // 🌟 공통 팝업
-import '../../widgets/common_widgets.dart'; // 🌟 공통 위젯
+import '../../utils/ui_utils.dart';
+import '../../widgets/common/common_widgets.dart';
 import '../../repositories/group_repository.dart';
+import '../../repositories/meetup_repository.dart';
+import '../../models/meetup_model.dart';
+import '../../models/member_model.dart';
 
 class MeetupCreateScreen extends StatefulWidget {
   final String groupId;
-  final Map<String, dynamic>? initialMeetup;
+  final MeetupModel? initialMeetup;
 
   const MeetupCreateScreen({
     super.key,
@@ -30,12 +33,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
 
-  List<Map<String, dynamic>> _members = [];
+  List<MemberModel> _members = [];
   final Set<String> _selectedMemberIds = {};
 
   final ImagePicker _picker = ImagePicker();
   List<dynamic> _photos = [];
-  final _repository = GroupRepository();
+  final _groupRepo = GroupRepository();
+  final _meetupRepo = MeetupRepository();
 
   @override
   void initState() {
@@ -53,21 +57,18 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
 
   Future<void> _loadInitialData() async {
     try {
-      final membersData = await _repository.fetchGroupMembers(widget.groupId);
-      if (mounted) setState(() => _members = membersData);
+      _members = await _groupRepo.fetchGroupMembers(widget.groupId);
+      if (mounted) setState(() {});
 
       if (widget.initialMeetup != null) {
-        _titleController.text = widget.initialMeetup!['title'] ?? '';
-        _locationController.text = widget.initialMeetup!['location'] ?? '';
-        _menuController.text = widget.initialMeetup!['menu'] ?? '';
-        if (widget.initialMeetup!['meet_date'] != null)
-          _selectedDate = DateTime.parse(widget.initialMeetup!['meet_date']);
-        if (widget.initialMeetup!['photos'] != null)
-          _photos = List<dynamic>.from(widget.initialMeetup!['photos']);
-        final attendances = await _repository.fetchAttendances(
-          widget.initialMeetup!['id'],
-        );
-        if (mounted) setState(() => _selectedMemberIds.addAll(attendances));
+        _titleController.text = widget.initialMeetup!.title ?? '';
+        _locationController.text = widget.initialMeetup!.location ?? '';
+        _menuController.text = widget.initialMeetup!.menu ?? '';
+        if (widget.initialMeetup!.date.isNotEmpty)
+          _selectedDate = DateTime.parse(widget.initialMeetup!.date);
+        _photos = List<dynamic>.from(widget.initialMeetup!.photos);
+        _selectedMemberIds.addAll(widget.initialMeetup!.attendanceMemberIds);
+        if (mounted) setState(() {});
       }
     } catch (e) {
       debugPrint('데이터 로드 실패: $e');
@@ -173,9 +174,9 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _repository.saveMeetup(
+      await _meetupRepo.saveMeetup(
         groupId: widget.groupId,
-        meetupId: widget.initialMeetup?['id'],
+        meetupId: widget.initialMeetup?.id,
         title: title,
         meetDate: _selectedDate.toIso8601String(),
         location: location,
@@ -370,10 +371,10 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                     spacing: 8.0,
                     runSpacing: 8.0,
                     children: _members.map((member) {
-                      final memberId = member['id'].toString();
+                      final memberId = member.id.toString();
                       final isSelected = _selectedMemberIds.contains(memberId);
                       return FilterChip(
-                        label: Text(member['display_name']),
+                        label: Text(member.displayName),
                         labelStyle: TextStyle(
                           color: isSelected ? Colors.white : Colors.grey[700],
                           fontWeight: isSelected

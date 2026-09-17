@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../utils/ui_utils.dart'; // 🌟 공통 팝업 임포트
+import '../../utils/ui_utils.dart';
+import '../../models/user_model.dart';
+import '../../repositories/user_repository.dart';
 import 'profile_edit_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
@@ -11,9 +12,8 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  String _nickname = '로딩중...';
-  String? _profileImageUrl;
-  String? _birthday;
+  UserModel? _myProfile;
+  final _userRepo = UserRepository();
 
   @override
   void initState() {
@@ -22,26 +22,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Future<void> _loadUserProfile() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-
-    final data = await Supabase.instance.client
-        .from('users')
-        .select('display_name, profile_image_url, birthday')
-        .eq('id', user.id)
-        .single();
-
-    if (mounted) {
-      setState(() {
-        _nickname = data['display_name'] ?? '알 수 없음';
-        _profileImageUrl = data['profile_image_url'];
-        _birthday = data['birthday'];
-      });
-    }
+    final profile = await _userRepo.fetchMyGlobalProfile();
+    if (mounted) setState(() => _myProfile = profile);
   }
 
   Future<void> _showLogoutDialog() async {
-    // 💡 UiUtils로 로그아웃 팝업 다이어트 성공!
     final confirm = await UiUtils.showBeautifulDialog(
       context: context,
       title: '로그아웃',
@@ -50,14 +35,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
       confirmColor: Colors.redAccent,
       icon: Icons.logout_rounded,
     );
-
-    if (confirm == true) {
-      await Supabase.instance.client.auth.signOut();
-    }
+    if (confirm == true) await _userRepo.signOut();
   }
 
   @override
   Widget build(BuildContext context) {
+    final nickname = _myProfile?.displayName ?? '로딩중...';
+    final profileUrl = _myProfile?.profileImageUrl;
+    final birthday = _myProfile?.birthday;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -89,10 +75,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 CircleAvatar(
                   radius: 36,
                   backgroundColor: Colors.grey[100],
-                  backgroundImage: _profileImageUrl != null
-                      ? NetworkImage(_profileImageUrl!)
+                  backgroundImage: profileUrl != null
+                      ? NetworkImage(profileUrl)
                       : null,
-                  child: _profileImageUrl == null
+                  child: profileUrl == null
                       ? Icon(
                           Icons.person_rounded,
                           size: 36,
@@ -106,7 +92,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$_nickname 님, 반가워요! 👋',
+                        '$nickname 님, 반가워요! 👋',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -115,8 +101,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _birthday != null
-                            ? '🎂 생일: ${_birthday!.replaceAll('-', '. ')}'
+                        birthday != null
+                            ? '🎂 생일: ${birthday.replaceAll('-', '. ')}'
                             : '생일 정보를 등록해주세요!',
                         style: TextStyle(
                           fontSize: 13,
@@ -131,7 +117,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
             ),
           ),
           const SizedBox(height: 32),
-
           Padding(
             padding: const EdgeInsets.only(left: 8, bottom: 12),
             child: Text(
@@ -153,13 +138,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   builder: (context) => const ProfileEditScreen(),
                 ),
               );
-              if (result == true) {
-                _loadUserProfile();
-              }
+              if (result == true) _loadUserProfile();
             },
           ),
           const SizedBox(height: 24),
-
           Padding(
             padding: const EdgeInsets.only(left: 8, bottom: 12),
             child: Text(

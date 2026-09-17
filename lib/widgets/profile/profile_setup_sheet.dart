@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../constants/app_constants.dart';
-import '../utils/color_utils.dart';
+import '../../constants/app_constants.dart';
+import '../../utils/color_utils.dart';
+
+/// 프로필 설정 바텀시트의 결과를 캡슐화한 불변 데이터 모델
+@immutable
+class ProfileSetupResult {
+  final XFile? image;
+  final String? emoji;
+  final int? colorIndex;
+
+  const ProfileSetupResult({this.image, this.emoji, this.colorIndex});
+
+  bool get hasImage => image != null;
+  bool get hasEmoji => emoji != null;
+  bool get hasColor => colorIndex != null;
+}
 
 class ProfileSetupSheet extends StatefulWidget {
   final String? initialEmoji;
@@ -21,7 +35,7 @@ class ProfileSetupSheet extends StatefulWidget {
 class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
   String? _selectedEmoji;
   int? _selectedColorIndex;
-  final ImagePicker _picker = ImagePicker(); // 🌟 이미지 피커 추가!
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -30,7 +44,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
     _selectedColorIndex = widget.initialColorIndex;
   }
 
-  // 🌟 갤러리에서 사진 고르기 (고르면 바로 창이 닫히며 반환됨!)
+  /// 갤러리에서 이미지를 선택하고 결과를 안전하게 반환하는 비동기 메서드
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -39,12 +53,37 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
         maxHeight: 512,
         imageQuality: 80,
       );
+
       if (pickedFile != null) {
-        if (mounted) Navigator.pop(context, {'image': pickedFile});
+        if (!mounted) return;
+        Navigator.pop(
+          context,
+          ProfileSetupResult(
+            image: pickedFile,
+            emoji: _selectedEmoji,
+            colorIndex: _selectedColorIndex,
+          ),
+        );
       }
     } catch (e) {
-      debugPrint('사진 선택 에러: $e');
+      debugPrint('사진 선택 중 예외 발생: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('사진을 가져오는 중 오류가 발생했습니다.')));
+      }
     }
+  }
+
+  /// 완료 버튼 클릭 시 결과 객체 생성 및 pop
+  void _onSubmit() {
+    Navigator.pop(
+      context,
+      ProfileSetupResult(
+        emoji: _selectedEmoji,
+        colorIndex: _selectedColorIndex,
+      ),
+    );
   }
 
   @override
@@ -61,8 +100,6 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-
-            // 🌟 대망의 사진/색상 선택 영역!
             const Text(
               '테마 색상 / 사진',
               style: TextStyle(
@@ -76,7 +113,6 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               spacing: 16,
               runSpacing: 16,
               children: [
-                // 📸 1. 카메라 버튼을 색상 리스트 맨 앞에 배치!
                 GestureDetector(
                   onTap: _pickImage,
                   child: Container(
@@ -93,12 +129,15 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                     ),
                   ),
                 ),
-                // 2. 기본 색상 리스트
                 ...List.generate(AppConstants.themeColors.length, (index) {
                   final color = AppConstants.themeColors[index];
                   final isSelected = _selectedColorIndex == index;
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedColorIndex = index),
+                    onTap: () {
+                      setState(() {
+                        _selectedColorIndex = index;
+                      });
+                    },
                     child: Container(
                       width: 50,
                       height: 50,
@@ -121,7 +160,6 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               ],
             ),
             const SizedBox(height: 32),
-
             const Text(
               '이모지',
               style: TextStyle(
@@ -136,7 +174,11 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               runSpacing: 12,
               children: [
                 GestureDetector(
-                  onTap: () => setState(() => _selectedEmoji = null),
+                  onTap: () {
+                    setState(() {
+                      _selectedEmoji = null;
+                    });
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -154,7 +196,11 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                 ),
                 ...AppConstants.emojis.map(
                   (emoji) => GestureDetector(
-                    onTap: () => setState(() => _selectedEmoji = emoji),
+                    onTap: () {
+                      setState(() {
+                        _selectedEmoji = emoji;
+                      });
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -170,15 +216,11 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               ],
             ),
             const SizedBox(height: 32),
-
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context, {
-                  'emoji': _selectedEmoji,
-                  'colorIndex': _selectedColorIndex,
-                }),
+                onPressed: _onSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[800],
                   shape: RoundedRectangleBorder(

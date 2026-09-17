@@ -5,13 +5,16 @@ import 'package:flutter/services.dart';
 
 import '../../utils/color_utils.dart';
 import '../../repositories/group_repository.dart';
+import '../../models/group_model.dart';
+import '../../models/meetup_model.dart';
+import '../../models/member_model.dart';
+
 import 'meetup_create_screen.dart';
 import 'meetup_detail_screen.dart';
 import 'group_info_screen.dart';
 import 'photo_viewer_screen.dart';
-
-import '../../widgets/member_drawer.dart';
-import '../../widgets/group_edit_sheets.dart';
+import '../../widgets/group/member_drawer.dart';
+import '../../widgets/group/group_edit_sheets.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -31,22 +34,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   late TabController _tabController;
 
   bool _isLoading = true;
-  late String _currentGroupName;
-  String? _currentCoverColor;
-  String? _currentEmoji;
-  String? _currentCoverImageUrl;
-  String? _currentLogoImageUrl;
 
-  List<Map<String, dynamic>> _meetups = [];
-  List<Map<String, dynamic>> _members = [];
-  List<Map<String, dynamic>> _rankedMembers = [];
+  GroupModel? _group;
+  List<MeetupModel> _meetups = [];
+  List<MemberModel> _rankedMembers = [];
   List<String> _allAlbumPhotos = [];
-  final _repository = GroupRepository();
+
+  final _groupRepo = GroupRepository();
 
   @override
   void initState() {
     super.initState();
-    _currentGroupName = widget.groupName;
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() => setState(() {}));
     _loadAllData();
@@ -61,25 +59,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _repository.fetchGroupDetailWithRanking(
-        widget.groupId,
-      );
+      final data = await _groupRepo.fetchGroupDetailWithRanking(widget.groupId);
       if (mounted) {
         setState(() {
-          _currentGroupName = data['group']['name'];
-          _currentCoverColor = data['group']['theme_color'];
-          _currentEmoji = data['group']['theme_emoji'];
-          _currentCoverImageUrl = data['group']['cover_image_url'];
-          _currentLogoImageUrl = data['group']['logo_image_url'];
-          _meetups = List<Map<String, dynamic>>.from(data['meetups']);
-          _members = List<Map<String, dynamic>>.from(data['members']);
-          _rankedMembers = List<Map<String, dynamic>>.from(
-            data['rankedMembers'],
-          );
+          _group = data['group'];
+          _meetups = data['meetups'];
+          _rankedMembers = data['rankedMembers'];
           _allAlbumPhotos.clear();
+
           for (var meetup in _meetups) {
-            final photos = meetup['photos'] as List<dynamic>? ?? [];
-            _allAlbumPhotos.addAll(photos.map((e) => e.toString()));
+            _allAlbumPhotos.addAll(meetup.photos);
           }
           _isLoading = false;
         });
@@ -93,7 +82,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     }
   }
 
-  void _openMyProfileEditSheet(Map<String, dynamic> memberData) {
+  void _openMyProfileEditSheet(MemberModel memberData) {
     Navigator.pop(context);
     showModalBottomSheet(
       context: context,
@@ -101,26 +90,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => GroupProfileEditSheet(
         memberData: memberData,
-        repository: _repository,
+        repository: _groupRepo,
         onUpdated: _loadAllData,
       ),
     );
   }
 
-  void _showMemberProfileSheet(Map<String, dynamic> member) {
-    final rankedData = _rankedMembers.firstWhere(
-      (m) => m['id'] == member['id'],
-      orElse: () => member,
-    );
-    final int attended = rankedData['attended_count'] ?? 0;
-    final double rate = rankedData['attendance_rate'] ?? 0.0;
-    final bool isHost = member['role'] == 'host';
-    final String? profileImageUrl = member['profile_image_url'];
+  void _showMemberProfileSheet(MemberModel member) {
+    final bool isHost = member.role == 'host';
     final bool isMe =
-        member['user_id'] ==
-        (Supabase.instance.client.auth.currentUser?.id ?? '');
-    final bool isBirthdayPublic = member['is_birthday_public'] ?? true;
-    final String? birthday = member['users']?['birthday'];
+        member.userId == (Supabase.instance.client.auth.currentUser?.id ?? '');
 
     showModalBottomSheet(
       context: context,
@@ -164,10 +143,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   CircleAvatar(
                     radius: 36,
                     backgroundColor: Colors.grey[100],
-                    backgroundImage: profileImageUrl != null
-                        ? NetworkImage(profileImageUrl)
+                    backgroundImage: member.profileImageUrl != null
+                        ? NetworkImage(member.profileImageUrl!)
                         : null,
-                    child: profileImageUrl == null
+                    child: member.profileImageUrl == null
                         ? Icon(
                             Icons.person_rounded,
                             size: 40,
@@ -192,8 +171,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               ),
                             Flexible(
                               child: Text(
-                                member['display_name'] + (isMe ? ' (나)' : ''),
-                                style: const TextStyle(
+                                member.displayName + (isMe ? ' (나)' : ''),
+                                style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
@@ -205,8 +184,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          (isBirthdayPublic && birthday != null)
-                              ? '🎂 생일: ${birthday.replaceAll('-', '. ')}'
+                          (member.isBirthdayPublic && member.birthday != null)
+                              ? '🎂 생일: ${member.birthday!.replaceAll('-', '. ')}'
                               : (isHost ? '모임 방장' : '일반 멤버'),
                           style: TextStyle(
                             fontSize: 14,
@@ -242,8 +221,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '$attended회',
-                          style: const TextStyle(
+                          '${member.attendedCount}회',
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             color: Colors.black87,
@@ -264,8 +243,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${rate.toInt()}%',
-                          style: const TextStyle(
+                          '${member.attendanceRate.toInt()}%',
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             color: const Color(0xFFFF8A80),
@@ -284,19 +263,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  String _formatDate(dynamic rawDate) {
-    if (rawDate == null || rawDate.toString().isEmpty) return '';
+  String _formatDate(String date) {
     try {
-      final dt = DateTime.parse(rawDate.toString());
+      final dt = DateTime.parse(date);
       return '${dt.year}. ${dt.month.toString().padLeft(2, '0')}. ${dt.day.toString().padLeft(2, '0')}';
     } catch (_) {
-      return rawDate.toString();
+      return date;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = ColorUtils.stringToColor(_currentCoverColor);
+    if (_isLoading || _group == null) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+        ),
+      );
+    }
+
+    final activeColor = ColorUtils.stringToColor(_group!.themeColor);
     final isDefaultColor = activeColor == Colors.grey[200]!;
 
     return PopScope(
@@ -308,13 +295,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         key: _scaffoldKey,
         backgroundColor: Colors.grey[50],
         endDrawer: MemberDrawer(
-          groupId: widget.groupId,
-          groupName: _currentGroupName,
+          groupId: _group!.id,
+          groupName: _group!.name,
           members: _rankedMembers,
           activeColor: activeColor,
           isDefaultColor: isDefaultColor,
           onMembersUpdated: _loadAllData,
-          repository: _repository,
+          repository: _groupRepo, // 🌟 [에러 해결] _repository -> _groupRepo 로 수정!
           onMemberTap: _showMemberProfileSheet,
         ),
         appBar: AppBar(
@@ -325,7 +312,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             onPressed: () => Navigator.pop(context, true),
           ),
           title: Text(
-            _currentGroupName,
+            _group!.name,
             style: TextStyle(
               color: Colors.grey[800],
               fontWeight: FontWeight.bold,
@@ -336,7 +323,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               icon: Icon(Icons.share_rounded, color: Colors.grey[800]),
               onPressed: () async {
                 final inviteLink =
-                    'morak://invite?groupId=${widget.groupId}&groupName=${widget.groupName}';
+                    'morak://invite?groupId=${_group!.id}&groupName=${Uri.encodeComponent(_group!.name)}';
                 await Clipboard.setData(ClipboardData(text: inviteLink));
                 if (mounted)
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -346,52 +333,39 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             ),
           ],
         ),
-        body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                  color: isDefaultColor ? Colors.grey[800] : activeColor,
-                ),
-              )
-            : Column(
+        body: Column(
+          children: [
+            _buildHeaderInfo(activeColor, isDefaultColor),
+            const SizedBox(height: 16),
+            TabBar(
+              controller: _tabController,
+              indicatorColor: isDefaultColor ? Colors.grey[800] : activeColor,
+              labelColor: Colors.grey[800],
+              unselectedLabelColor: Colors.grey[400],
+              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              tabs: const [
+                Tab(text: '만남 기록'),
+                Tab(text: '추억 앨범 📸'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
                 children: [
-                  _buildHeaderInfo(activeColor, isDefaultColor),
-                  const SizedBox(height: 16),
-                  TabBar(
-                    controller: _tabController,
-                    indicatorColor: isDefaultColor
-                        ? Colors.grey[800]
-                        : activeColor,
-                    labelColor: Colors.grey[800],
-                    unselectedLabelColor: Colors.grey[400],
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    tabs: const [
-                      Tab(text: '만남 기록'),
-                      Tab(text: '사진첩'),
-                    ],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildMeetupTab(activeColor, isDefaultColor),
-                        _buildAlbumTab(activeColor, isDefaultColor),
-                      ],
-                    ),
-                  ),
+                  _buildMeetupTab(activeColor, isDefaultColor),
+                  _buildAlbumTab(activeColor, isDefaultColor),
                 ],
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHeaderInfo(Color activeColor, bool isDefaultColor) {
-    final bool hasCover =
-        _currentCoverImageUrl != null && _currentCoverImageUrl!.isNotEmpty;
-    final bool hasLogo =
-        _currentLogoImageUrl != null && _currentLogoImageUrl!.isNotEmpty;
+    final bool hasCover = _group!.coverImageUrl != null;
+    final bool hasLogo = _group!.logoImageUrl != null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
@@ -406,7 +380,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           borderRadius: BorderRadius.circular(24),
           image: hasCover
               ? DecorationImage(
-                  image: NetworkImage(_currentCoverImageUrl!),
+                  image: NetworkImage(_group!.coverImageUrl!),
                   fit: BoxFit.cover,
                 )
               : null,
@@ -434,20 +408,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             children: [
               GestureDetector(
                 onTap: () async {
-                  final groupData = {
-                    'id': widget.groupId,
-                    'name': _currentGroupName,
-                    'theme_color': _currentCoverColor,
-                    'theme_emoji': _currentEmoji,
-                    'cover_image_url': _currentCoverImageUrl,
-                    'logo_image_url': _currentLogoImageUrl,
-                  };
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => GroupInfoScreen(
-                        groupData: groupData,
-                        repository: _repository,
+                        groupData: _group!,
+                        groupRepo: _groupRepo,
                       ),
                     ),
                   );
@@ -465,7 +431,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     shape: BoxShape.circle,
                     image: hasLogo
                         ? DecorationImage(
-                            image: NetworkImage(_currentLogoImageUrl!),
+                            image: NetworkImage(_group!.logoImageUrl!),
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -474,11 +440,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       ? null
                       : Center(
                           child:
-                              (_currentEmoji != null &&
-                                  _currentEmoji!.isNotEmpty)
+                              (_group!.themeEmoji != null &&
+                                  _group!.themeEmoji!.isNotEmpty)
                               ? Text(
-                                  _currentEmoji!,
-                                  style: const TextStyle(fontSize: 32),
+                                  _group!.themeEmoji!,
+                                  style: TextStyle(fontSize: 32),
                                 )
                               : Icon(
                                   Icons.groups_rounded,
@@ -537,7 +503,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '${_members.length}',
+                            '${_rankedMembers.length}',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -600,7 +566,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    MeetupCreateScreen(groupId: widget.groupId),
+                                    MeetupCreateScreen(groupId: _group!.id),
                               ),
                             );
                             if (result == true) _loadAllData();
@@ -635,7 +601,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    MeetupCreateScreen(groupId: widget.groupId),
+                                    MeetupCreateScreen(groupId: _group!.id),
                               ),
                             );
                             if (result == true) _loadAllData();
@@ -675,29 +641,23 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             ),
                           ),
                         );
-                      final item = _meetups[index - 1];
-                      final title = item['title']?.toString().isNotEmpty == true
-                          ? item['title']
-                          : '제목 없는 만남';
+                      final meetup = _meetups[index - 1];
+                      final title = meetup.title ?? '제목 없는 만남';
                       final subText = [
-                        item['location'] ?? '',
-                        item['menu'] ?? '',
-                      ].where((s) => s.toString().isNotEmpty).join(' · ');
-                      final attendeeCount =
-                          (item['attendances'] as List?)?.length ?? 0;
-                      final photos = item['photos'] as List<dynamic>? ?? [];
-                      final hasPhoto = photos.isNotEmpty;
-                      final bgImageUrl = hasPhoto
-                          ? photos.first.toString()
-                          : null;
+                        meetup.location ?? '',
+                        meetup.menu ?? '',
+                      ].where((s) => s.isNotEmpty).join(' · ');
+                      final attendeeCount = meetup.attendanceMemberIds.length;
+                      final hasPhoto = meetup.photos.isNotEmpty;
+                      final bgImageUrl = hasPhoto ? meetup.photos.first : null;
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => MeetupDetailScreen(
-                                meetup: item,
-                                groupMembers: _members,
+                                meetup: meetup,
+                                groupMembers: _rankedMembers,
                                 activeColor: activeColor,
                               ),
                             ),
@@ -762,7 +722,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        _formatDate(item['meet_date']),
+                                        _formatDate(meetup.date),
                                         style: TextStyle(
                                           color: hasPhoto
                                               ? Colors.white70
@@ -848,19 +808,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   Widget _buildAlbumTab(Color activeColor, bool isDefaultColor) {
-    List<Map<String, dynamic>> albumPhotos = [];
+    List<Map<String, dynamic>> albumData = [];
     for (var meetup in _meetups) {
-      final photos = meetup['photos'] as List<dynamic>? ?? [];
-      for (var p in photos) {
-        albumPhotos.add({'url': p.toString(), 'meetup': meetup});
+      for (var photo in meetup.photos) {
+        albumData.add({'url': photo, 'meetup': meetup});
       }
     }
-    final imageUrls = albumPhotos.map((e) => e['url'] as String).toList();
+    final imageUrls = albumData.map((e) => e['url'] as String).toList();
 
     return RefreshIndicator(
       color: isDefaultColor ? Colors.grey[800] : activeColor,
       onRefresh: _loadAllData,
-      child: albumPhotos.isEmpty
+      child: albumData.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -883,7 +842,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               crossAxisCount: 2,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              itemCount: albumPhotos.length,
+              itemCount: albumData.length,
               itemBuilder: (context, index) {
                 return GestureDetector(
                   onTap: () => Navigator.push(
@@ -892,8 +851,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       builder: (context) => PhotoViewerScreen(
                         imageUrls: imageUrls,
                         initialIndex: index,
-                        meetup: albumPhotos[index]['meetup'],
-                        groupMembers: _members,
+                        meetup: albumData[index]['meetup'],
+                        groupMembers: _rankedMembers,
                         activeColor: activeColor,
                       ),
                     ),

@@ -6,10 +6,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../constants/app_constants.dart';
-import '../../utils/ui_utils.dart'; // 🌟 공통 팝업 임포트!
-import '../../widgets/common_widgets.dart'; // 🌟 공통 UI 위젯 임포트!
+import '../../utils/ui_utils.dart';
+import '../../widgets/common/common_widgets.dart';
 import '../../repositories/group_repository.dart';
-import '../../widgets/profile_setup_sheet.dart';
+import '../../repositories/user_repository.dart';
+import '../../widgets/profile/profile_setup_sheet.dart';
 
 class GroupCreateScreen extends StatefulWidget {
   const GroupCreateScreen({super.key});
@@ -22,7 +23,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   int _currentPage = 0;
   final _nameController = TextEditingController();
   final _myNicknameController = TextEditingController();
-  final _repository = GroupRepository();
+  final _groupRepo = GroupRepository();
+  final _userRepo = UserRepository();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -52,18 +54,14 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
   Future<void> _loadGlobalProfile() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-      final data = await Supabase.instance.client
-          .from('users')
-          .select('display_name, profile_image_url')
-          .eq('id', userId)
-          .single();
-      setState(() {
-        _myNicknameController.text = data['display_name'] ?? '';
-        _globalProfileImageUrl = data['profile_image_url'];
-        _isLoading = false;
-      });
+      final profile = await _userRepo.fetchMyGlobalProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _myNicknameController.text = profile.displayName;
+          _globalProfileImageUrl = profile.profileImageUrl;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -115,11 +113,13 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       });
     }
   }
+  // ... [상단 import 및 클래스 선언 생략 (기존 파일 앞부분 동일)] ...
 
   Future<void> _createGroup() async {
-    final groupName = _nameController.text.trim();
-    final myNickname = _myNicknameController.text.trim();
+    final groupName = _nameController.text.trim(); // 🌟 변수명 주의
+    final myNickname = _myNicknameController.text.trim(); // 🌟 변수명 주의
     setState(() => _isSaving = true);
+
     try {
       String? finalProfileImageUrl = _globalProfileImageUrl;
       if (_localProfileImage != null) {
@@ -141,16 +141,19 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       final selectedHexColor = _selectedColorIndex != null
           ? '#${AppConstants.themeColors[_selectedColorIndex!].value.toRadixString(16).substring(2).toUpperCase()}'
           : null;
-      await _repository.createGroup(
-        groupName,
-        myNickname,
-        _selectedEmoji,
-        selectedHexColor,
-        finalProfileImageUrl,
-        _coverImage,
-        _logoImage,
-        _isBirthdayPublic,
+
+      // 🌟 [에러 해결] 파라미터 이름을 명시적으로 지정하여 컴파일 에러 해결!
+      await _groupRepo.createGroup(
+        name: groupName, // 🌟 name -> groupName
+        nickname: myNickname, // 🌟 nickname -> myNickname
+        emoji: _selectedEmoji,
+        hexColor: selectedHexColor,
+        profileImageUrl: finalProfileImageUrl,
+        coverImage: _coverImage,
+        logoImage: _logoImage,
+        isBirthdayPublic: _isBirthdayPublic,
       );
+
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('🎉 모임이 생성되었습니다!')));
