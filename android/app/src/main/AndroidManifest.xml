@@ -16,12 +16,11 @@
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
                  to determine the Window background behind the Flutter UI. -->
-            <intent-filter>
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="morak" android:host="invite" />
+                <data android:scheme="https" android:host="morak.app" android:pathPrefix="/invite" />
             </intent-filter>
 
             <meta-data
