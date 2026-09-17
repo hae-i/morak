@@ -149,6 +149,62 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
+  void _showImageActionMenu({
+    required VoidCallback onPick,
+    required VoidCallback onDelete,
+    required bool hasImage,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.black87,
+                ),
+                title: const Text(
+                  '앨범에서 사진 선택',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  onPick();
+                },
+              ),
+              if (hasImage)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    '사진 삭제하기',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,63 +229,49 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 children: [
                   Center(
                     child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[200]!),
-                            ),
-                            child: _localProfileImage != null
-                                ? ClipOval(
-                                    child: kIsWeb
-                                        ? Image.network(
-                                            _localProfileImage!.path,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : Image.file(
-                                            File(_localProfileImage!.path),
-                                            fit: BoxFit.cover,
-                                          ),
-                                  )
-                                : (_existingProfileImageUrl != null
-                                      ? ClipOval(
-                                          child: Image.network(
-                                            _existingProfileImageUrl!,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons.person_rounded,
-                                          size: 48,
-                                          color: Colors.grey[300],
-                                        )),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF8A80),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ],
+                      // 🌟 메뉴 연동!
+                      onTap: () => _showImageActionMenu(
+                        onPick: _pickImage,
+                        onDelete: () => setState(() {
+                          _localProfileImage = null;
+                          _existingProfileImageUrl = null;
+                        }),
+                        hasImage:
+                            _localProfileImage != null ||
+                            _existingProfileImageUrl != null,
+                      ),
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: _localProfileImage != null
+                            ? ClipOval(
+                                child: kIsWeb
+                                    ? Image.network(
+                                        _localProfileImage!.path,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.file(
+                                        File(_localProfileImage!.path),
+                                        fit: BoxFit.cover,
+                                      ),
+                              )
+                            : (_existingProfileImageUrl != null
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        _existingProfileImageUrl!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.person_rounded,
+                                      size: 48,
+                                      color: Colors.grey[300],
+                                    )),
                       ),
                     ),
                   ),

@@ -10,9 +10,11 @@ import 'package:image_picker/image_picker.dart';
 import '../../utils/color_utils.dart';
 import '../../repositories/group_repository.dart';
 import '../../constants/app_constants.dart';
-import '../../widgets/profile_setup_sheet.dart'; // 💡 이 줄이 에러의 주범이었습니다! 절대 지우지 마세요!
+import '../../widgets/profile_setup_sheet.dart';
 import 'meetup_create_screen.dart';
 import 'meetup_detail_screen.dart';
+import 'group_info_screen.dart';
+import 'photo_viewer_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -73,7 +75,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           _currentCoverColor = data['group']['theme_color'];
           _currentEmoji = data['group']['theme_emoji'];
           _currentCoverImageUrl = data['group']['cover_image_url'];
-          _currentLogoImageUrl = data['group']['logo_image_url']; // 🌟 로고 갱신
+          _currentLogoImageUrl = data['group']['logo_image_url'];
           _meetups = List<Map<String, dynamic>>.from(data['meetups']);
           _members = List<Map<String, dynamic>>.from(data['members']);
           _rankedMembers = List<Map<String, dynamic>>.from(
@@ -195,25 +197,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  void _openGroupEditSheet() {
-    Navigator.pop(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _GroupEditSheet(
-        groupId: widget.groupId,
-        initialName: _currentGroupName,
-        initialEmoji: _currentEmoji,
-        initialColor: _currentCoverColor,
-        initialCoverUrl: _currentCoverImageUrl,
-        initialLogoUrl: _currentLogoImageUrl,
-        repository: _repository,
-        onUpdated: _loadAllData,
-      ), // 🌟 로고 파라미터 추가
-    );
-  }
-
   void _openMyProfileEditSheet(Map<String, dynamic> memberData) {
     Navigator.pop(context);
     showModalBottomSheet(
@@ -240,8 +223,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     final bool isMe =
         member['user_id'] ==
         (Supabase.instance.client.auth.currentUser?.id ?? '');
-
-    // 🌟 생일 정보 가져오기!
     final bool isBirthdayPublic = member['is_birthday_public'] ?? true;
     final String? birthday = member['users']?['birthday'];
 
@@ -327,7 +308,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           ],
                         ),
                         const SizedBox(height: 4),
-                        // 🌟 생일이 공개 설정되어 있다면 보여주기!
                         Text(
                           (isBirthdayPublic && birthday != null)
                               ? '🎂 생일: ${birthday.replaceAll('-', '. ')}'
@@ -408,66 +388,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  Future<void> _deleteGroup() async {
-    final confirm = await _showBeautifulDialog(
-      '모임 삭제',
-      '정말 이 모임을 삭제할까요?\n모든 기록이 함께 사라집니다.',
-      '삭제하기',
-      Colors.redAccent,
-      Icons.delete_forever_rounded,
-    );
-    if (confirm == true) {
-      await _repository.deleteGroup(widget.groupId);
-      if (mounted) Navigator.pop(context, true);
-    }
-  }
-
-  Future<void> _deleteMeetup(String meetupId) async {
-    final confirm = await _showBeautifulDialog(
-      '기록 삭제',
-      '이 만남 기록을 삭제할까요?\n삭제 후엔 복구할 수 없어요.',
-      '삭제',
-      Colors.redAccent,
-      Icons.delete_outline_rounded,
-    );
-    if (confirm == true) {
-      await _repository.deleteMeetup(meetupId);
-      _loadAllData();
-    }
-  }
-
-  void _showModernMenuSheet(List<Widget> menuItems) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      elevation: 0,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(mainAxisSize: MainAxisSize.min, children: menuItems),
-        ),
-      ),
-    );
-  }
-
   String _formatDate(dynamic rawDate) {
     if (rawDate == null || rawDate.toString().isEmpty) return '';
     try {
       final dt = DateTime.parse(rawDate.toString());
       return '${dt.year}. ${dt.month.toString().padLeft(2, '0')}. ${dt.day.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return rawDate.toString();
-    }
-  }
-
-  String _formatShortDate(dynamic rawDate) {
-    if (rawDate == null || rawDate.toString().isEmpty) return '';
-    try {
-      final dt = DateTime.parse(rawDate.toString());
-      return '${dt.month}.${dt.day}';
     } catch (_) {
       return rawDate.toString();
     }
@@ -524,36 +449,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   );
               },
             ),
-            IconButton(
-              icon: Icon(Icons.more_horiz_rounded, color: Colors.grey[800]),
-              onPressed: () => _showModernMenuSheet([
-                ListTile(
-                  leading: const Icon(
-                    Icons.edit_rounded,
-                    color: Colors.black87,
-                  ),
-                  title: const Text(
-                    '모임 정보 수정',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  onTap: _openGroupEditSheet,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete_rounded, color: Colors.red),
-                  title: const Text(
-                    '모임 삭제하기',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _deleteGroup();
-                  },
-                ),
-              ]),
-            ),
           ],
         ),
         body: _isLoading
@@ -600,53 +495,74 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   Widget _buildHeaderInfo(Color activeColor, bool isDefaultColor) {
     final bool hasCover =
         _currentCoverImageUrl != null && _currentCoverImageUrl!.isNotEmpty;
-    // 🌟 동그라미 로고 적용!
     final bool hasLogo =
         _currentLogoImageUrl != null && _currentLogoImageUrl!.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-      child: GestureDetector(
-        onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+      child: Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: hasCover
+              ? Colors.black
+              : (isDefaultColor
+                    ? Colors.grey[200]
+                    : activeColor.withOpacity(0.15)),
+          borderRadius: BorderRadius.circular(24),
+          image: hasCover
+              ? DecorationImage(
+                  image: NetworkImage(_currentCoverImageUrl!),
+                  fit: BoxFit.cover,
+                )
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Container(
-          height: 140,
           decoration: BoxDecoration(
-            color: hasCover
-                ? Colors.black
-                : (isDefaultColor
-                      ? Colors.grey[200]
-                      : activeColor.withOpacity(0.15)),
             borderRadius: BorderRadius.circular(24),
-            image: hasCover
-                ? DecorationImage(
-                    image: NetworkImage(_currentCoverImageUrl!),
-                    fit: BoxFit.cover,
+            gradient: hasCover
+                ? const LinearGradient(
+                    colors: [Colors.black87, Colors.transparent],
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
                   )
                 : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: hasCover
-                  ? const LinearGradient(
-                      colors: [Colors.black87, Colors.transparent],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
-                    )
-                  : null,
-            ),
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              children: [
-                // 🌟 로고 이미지가 있으면 띄우고, 없으면 기존 이모지/색상 유지!
-                Container(
+          padding: const EdgeInsets.all(24.0),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  final groupData = {
+                    'id': widget.groupId,
+                    'name': _currentGroupName,
+                    'theme_color': _currentCoverColor,
+                    'theme_emoji': _currentEmoji,
+                    'cover_image_url': _currentCoverImageUrl,
+                    'logo_image_url': _currentLogoImageUrl,
+                  };
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GroupInfoScreen(
+                        groupData: groupData,
+                        repository: _repository,
+                      ),
+                    ),
+                  );
+                  if (result == 'deleted') {
+                    if (mounted) Navigator.pop(context, true);
+                  } else if (result == 'updated') {
+                    _loadAllData();
+                  }
+                },
+                child: Container(
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
@@ -680,12 +596,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                 ),
                         ),
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Column(
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _tabController.animateTo(0),
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
@@ -709,12 +629,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           ),
                         ],
                       ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: hasCover ? Colors.white24 : Colors.black12,
-                      ),
-                      Column(
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: hasCover ? Colors.white24 : Colors.black12,
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
@@ -738,15 +662,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: hasCover ? Colors.white54 : Colors.grey[400],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -814,10 +734,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   Widget _buildAlbumTab(Color activeColor, bool isDefaultColor) {
+    List<Map<String, dynamic>> albumPhotos = [];
+    for (var meetup in _meetups) {
+      final photos = meetup['photos'] as List<dynamic>? ?? [];
+      for (var p in photos) {
+        albumPhotos.add({'url': p.toString(), 'meetup': meetup});
+      }
+    }
+    final imageUrls = albumPhotos
+        .map((e) => e['url'] as String)
+        .toList(); // 전체 URL 리스트 추출
+
     return RefreshIndicator(
       color: isDefaultColor ? Colors.grey[800] : activeColor,
       onRefresh: _loadAllData,
-      child: _allAlbumPhotos.isEmpty
+      child: albumPhotos.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -840,13 +771,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               crossAxisCount: 2,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              itemCount: _allAlbumPhotos.length,
+              itemCount: albumPhotos.length,
               itemBuilder: (context, index) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    _allAlbumPhotos[index],
-                    fit: BoxFit.cover,
+                return GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PhotoViewerScreen(
+                        imageUrls: imageUrls,
+                        initialIndex: index,
+                        meetup: albumPhotos[index]['meetup'],
+                        groupMembers: _members,
+                        activeColor: activeColor,
+                      ),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(imageUrls[index], fit: BoxFit.cover),
                   ),
                 );
               },
@@ -1047,54 +989,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      color: hasPhoto ? Colors.white : Colors.grey,
-                    ),
-                    onPressed: () => _showModernMenuSheet([
-                      ListTile(
-                        leading: const Icon(
-                          Icons.edit_rounded,
-                          color: Colors.black87,
-                        ),
-                        title: const Text(
-                          '기록 수정하기',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        onTap: () async {
-                          Navigator.pop(context);
-                          final r = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MeetupCreateScreen(
-                                groupId: widget.groupId,
-                                initialMeetup: item,
-                              ),
-                            ),
-                          );
-                          if (r == true) _loadAllData();
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.delete_rounded,
-                          color: Colors.red,
-                        ),
-                        title: const Text(
-                          '기록 삭제하기',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _deleteMeetup(item['id']);
-                        },
-                      ),
-                    ]),
-                  ),
                 ],
               ),
             ),
@@ -1105,7 +999,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 }
 
-// 🌟 [추가] 모임 정보 수정 (로고 추가)
+// 🌟 [개조] 모임 정보 수정 시트 (카톡 액션 메뉴 적용)
 class _GroupEditSheet extends StatefulWidget {
   final String groupId, initialName;
   final String? initialEmoji, initialColor, initialCoverUrl, initialLogoUrl;
@@ -1133,12 +1027,16 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
   String? _selectedEmoji;
   int? _selectedColorIndex;
   bool _isSaving = false;
+  String? _existingCoverUrl;
+  String? _existingLogoUrl;
 
   @override
   void initState() {
     super.initState();
     _nameController.text = widget.initialName;
     _selectedEmoji = widget.initialEmoji;
+    _existingCoverUrl = widget.initialCoverUrl;
+    _existingLogoUrl = widget.initialLogoUrl;
     if (widget.initialColor != null) {
       final val = int.tryParse(widget.initialColor!) ?? Colors.grey[200]!.value;
       for (int i = 0; i < AppConstants.themeColors.length; i++) {
@@ -1154,6 +1052,62 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _showImageActionMenu({
+    required VoidCallback onPick,
+    required VoidCallback onDelete,
+    required bool hasImage,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.black87,
+                ),
+                title: const Text(
+                  '앨범에서 사진 선택',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  onPick();
+                },
+              ),
+              if (hasImage)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    '사진 삭제하기',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImage(bool isCover) async {
@@ -1186,11 +1140,19 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
         initialColorIndex: _selectedColorIndex,
       ),
     );
-    if (result != null)
+    if (result != null) {
       setState(() {
-        _selectedEmoji = result['emoji'];
-        _selectedColorIndex = result['colorIndex'];
+        if (result['image'] != null) {
+          _localLogo = result['image'];
+          _selectedEmoji = null;
+        } else {
+          _selectedEmoji = result['emoji'];
+          _selectedColorIndex = result['colorIndex'];
+          _localLogo = null;
+          _existingLogoUrl = null;
+        }
       });
+    }
   }
 
   Future<void> _save() async {
@@ -1207,9 +1169,9 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
         colorStr,
         _selectedEmoji,
         _localCover,
-        widget.initialCoverUrl,
+        _existingCoverUrl,
         _localLogo,
-        widget.initialLogoUrl,
+        _existingLogoUrl,
       );
       if (mounted) {
         Navigator.pop(context);
@@ -1256,7 +1218,14 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
           ),
           const SizedBox(height: 32),
           GestureDetector(
-            onTap: () => _pickImage(true),
+            onTap: () => _showImageActionMenu(
+              onPick: () => _pickImage(true),
+              onDelete: () => setState(() {
+                _localCover = null;
+                _existingCoverUrl = null;
+              }),
+              hasImage: _localCover != null || _existingCoverUrl != null,
+            ),
             child: Container(
               height: 120,
               width: double.infinity,
@@ -1272,14 +1241,14 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
                                   as ImageProvider,
                         fit: BoxFit.cover,
                       )
-                    : (widget.initialCoverUrl != null
+                    : (_existingCoverUrl != null
                           ? DecorationImage(
-                              image: NetworkImage(widget.initialCoverUrl!),
+                              image: NetworkImage(_existingCoverUrl!),
                               fit: BoxFit.cover,
                             )
                           : null),
               ),
-              child: (_localCover == null && widget.initialCoverUrl == null)
+              child: (_localCover == null && _existingCoverUrl == null)
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -1304,58 +1273,32 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
           const SizedBox(height: 24),
           Row(
             children: [
-              // 🌟 수정 모달에도 로고 버튼 추가!
               GestureDetector(
                 onTap: _showColorPicker,
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: _selectedColorIndex != null
-                          ? AppConstants.themeColors[_selectedColorIndex!]
-                          : Colors.grey[200],
-                      backgroundImage: _localLogo != null
-                          ? (kIsWeb
-                                ? NetworkImage(_localLogo!.path)
-                                : FileImage(File(_localLogo!.path))
-                                      as ImageProvider)
-                          : (widget.initialLogoUrl != null
-                                ? NetworkImage(widget.initialLogoUrl!)
-                                : null),
-                      child:
-                          (_localLogo == null && widget.initialLogoUrl == null)
-                          ? (_selectedEmoji != null
-                                ? Text(
-                                    _selectedEmoji!,
-                                    style: const TextStyle(fontSize: 24),
-                                  )
-                                : Icon(
-                                    Icons.color_lens_rounded,
-                                    color: Colors.grey[400],
-                                  ))
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () => _pickImage(false),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF8A80),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            color: Colors.white,
-                            size: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: _selectedColorIndex != null
+                      ? AppConstants.themeColors[_selectedColorIndex!]
+                      : Colors.grey[200],
+                  backgroundImage: _localLogo != null
+                      ? (kIsWeb
+                            ? NetworkImage(_localLogo!.path)
+                            : FileImage(File(_localLogo!.path))
+                                  as ImageProvider)
+                      : (_existingLogoUrl != null
+                            ? NetworkImage(_existingLogoUrl!)
+                            : null),
+                  child: (_localLogo == null && _existingLogoUrl == null)
+                      ? (_selectedEmoji != null
+                            ? Text(
+                                _selectedEmoji!,
+                                style: const TextStyle(fontSize: 24),
+                              )
+                            : Icon(
+                                Icons.color_lens_rounded,
+                                color: Colors.grey[400],
+                              ))
+                      : null,
                 ),
               ),
               const SizedBox(width: 16),
@@ -1413,6 +1356,7 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
   }
 }
 
+// 🌟 [개조] 모임 멤버 프로필 수정 시트 (카톡 액션 메뉴 적용)
 class _GroupProfileEditSheet extends StatefulWidget {
   final Map<String, dynamic> memberData;
   final GroupRepository repository;
@@ -1432,7 +1376,7 @@ class _GroupProfileEditSheetState extends State<_GroupProfileEditSheet> {
   XFile? _localImage;
   String? _existingImageUrl;
   bool _isSaving = false;
-  bool _isBirthdayPublic = true; // 🌟 수정 화면에도 생일 공개 토글 추가!
+  bool _isBirthdayPublic = true;
 
   @override
   void initState() {
@@ -1446,6 +1390,62 @@ class _GroupProfileEditSheetState extends State<_GroupProfileEditSheet> {
   void dispose() {
     _nicknameController.dispose();
     super.dispose();
+  }
+
+  void _showImageActionMenu({
+    required VoidCallback onPick,
+    required VoidCallback onDelete,
+    required bool hasImage,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.black87,
+                ),
+                title: const Text(
+                  '앨범에서 사진 선택',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  onPick();
+                },
+              ),
+              if (hasImage)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    '사진 삭제하기',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -1523,60 +1523,43 @@ class _GroupProfileEditSheetState extends State<_GroupProfileEditSheet> {
           ),
           const SizedBox(height: 32),
           GestureDetector(
-            onTap: _pickImage,
-            child: Stack(
-              children: [
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: _localImage != null
-                      ? ClipOval(
-                          child: kIsWeb
-                              ? Image.network(
-                                  _localImage!.path,
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.file(
-                                  File(_localImage!.path),
-                                  fit: BoxFit.cover,
-                                ),
-                        )
-                      : (_existingImageUrl != null
-                            ? ClipOval(
-                                child: Image.network(
-                                  _existingImageUrl!,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Icon(
-                                Icons.person_rounded,
-                                size: 40,
-                                color: Colors.grey[400],
-                              )),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF8A80),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                  ),
-                ),
-              ],
+            onTap: () => _showImageActionMenu(
+              onPick: _pickImage,
+              onDelete: () => setState(() {
+                _localImage = null;
+                _existingImageUrl = null;
+              }),
+              hasImage: _localImage != null || _existingImageUrl != null,
+            ),
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: _localImage != null
+                  ? ClipOval(
+                      child: kIsWeb
+                          ? Image.network(_localImage!.path, fit: BoxFit.cover)
+                          : Image.file(
+                              File(_localImage!.path),
+                              fit: BoxFit.cover,
+                            ),
+                    )
+                  : (_existingImageUrl != null
+                        ? ClipOval(
+                            child: Image.network(
+                              _existingImageUrl!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Icon(
+                            Icons.person_rounded,
+                            size: 40,
+                            color: Colors.grey[400],
+                          )),
             ),
           ),
           const SizedBox(height: 24),
@@ -1657,6 +1640,7 @@ class _GroupProfileEditSheetState extends State<_GroupProfileEditSheet> {
   }
 }
 
+// ... 서랍장 _MemberDrawer 클래스는 이전과 완전히 동일합니다! 그대로 두시면 됩니다! ...
 class _MemberDrawer extends StatefulWidget {
   final String groupId, groupName;
   final List<Map<String, dynamic>> members;

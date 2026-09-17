@@ -22,9 +22,9 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   final _nameController = TextEditingController();
   final _myNicknameController = TextEditingController();
   final _repository = GroupRepository();
+
   bool _isLoading = true;
   bool _isSaving = false;
-
   int? _selectedColorIndex;
   String? _selectedEmoji;
   String? _globalProfileImageUrl;
@@ -32,8 +32,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   final ImagePicker _picker = ImagePicker();
   XFile? _localProfileImage;
   XFile? _coverImage;
-  XFile? _logoImage; // 🌟 동그라미 로고용 변수 추가!
-  bool _isBirthdayPublic = true; // 🌟 생일 공개 여부!
+  XFile? _logoImage;
+  bool _isBirthdayPublic = true;
 
   @override
   void initState() {
@@ -68,35 +68,81 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage(bool isProfile) async {
+  // 🌟 카톡 스타일의 스마트한 하단 사진 액션 메뉴!
+  void _showImageActionMenu({
+    required VoidCallback onPick,
+    required VoidCallback onDelete,
+    required bool hasImage,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.black87,
+                ),
+                title: const Text(
+                  '앨범에서 사진 선택',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  onPick();
+                },
+              ),
+              if (hasImage)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    '사진 삭제하기',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(bool isProfile, bool isCover) async {
     try {
       final pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
+        maxWidth: isCover ? 1080 : 512,
+        maxHeight: isCover ? 1080 : 512,
         imageQuality: 80,
       );
-      if (pickedFile != null)
+      if (pickedFile != null) {
         setState(() {
-          if (isProfile)
+          if (isCover)
+            _coverImage = pickedFile;
+          else if (isProfile)
             _localProfileImage = pickedFile;
           else
             _logoImage = pickedFile;
         });
-    } catch (e) {
-      debugPrint('$e');
-    }
-  }
-
-  Future<void> _pickCoverImage() async {
-    try {
-      final pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1080,
-        maxHeight: 1080,
-        imageQuality: 80,
-      );
-      if (pickedFile != null) setState(() => _coverImage = pickedFile);
+      }
     } catch (e) {
       debugPrint('$e');
     }
@@ -116,11 +162,18 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         initialColorIndex: _selectedColorIndex,
       ),
     );
-    if (result != null)
+    if (result != null) {
       setState(() {
-        _selectedEmoji = result['emoji'];
-        _selectedColorIndex = result['colorIndex'];
+        if (result['image'] != null) {
+          _logoImage = result['image'];
+          _selectedEmoji = null;
+        } else {
+          _selectedEmoji = result['emoji'];
+          _selectedColorIndex = result['colorIndex'];
+          _logoImage = null;
+        }
       });
+    }
   }
 
   void _showWarningDialog(String title, String message) {
@@ -213,7 +266,6 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
             .from('profiles')
             .getPublicUrl('avatars/$fileName');
       }
-
       final selectedHexColor = _selectedColorIndex != null
           ? '#${AppConstants.themeColors[_selectedColorIndex!].value.toRadixString(16).substring(2).toUpperCase()}'
           : null;
@@ -227,7 +279,6 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         _logoImage,
         _isBirthdayPublic,
       );
-
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('🎉 모임이 생성되었습니다!')));
@@ -326,8 +377,14 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 🌟 커버 사진 탭 연결
                             GestureDetector(
-                              onTap: _pickCoverImage,
+                              onTap: () => _showImageActionMenu(
+                                onPick: () => _pickImage(false, true),
+                                onDelete: () =>
+                                    setState(() => _coverImage = null),
+                                hasImage: _coverImage != null,
+                              ),
                               child: Container(
                                 height: 160,
                                 width: double.infinity,
@@ -373,64 +430,36 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                               ),
                             ),
                             const SizedBox(height: 32),
+                            // 🌟 로고 탭 연결 (테마 설정 팝업)
                             Center(
-                              child: Stack(
-                                children: [
-                                  // 🌟 동그라미 로고 영역!
-                                  GestureDetector(
-                                    onTap: _showProfileSetupSheet,
-                                    child: CircleAvatar(
-                                      radius: 48,
-                                      backgroundColor: isDefaultColor
-                                          ? Colors.white
-                                          : activeColor,
-                                      backgroundImage: _logoImage != null
-                                          ? (kIsWeb
-                                                ? NetworkImage(_logoImage!.path)
-                                                : FileImage(
-                                                    File(_logoImage!.path),
-                                                  ) as ImageProvider)
-                                          : null,
-                                      child: _logoImage == null
-                                          ? (_selectedEmoji != null
-                                                ? Text(
-                                                    _selectedEmoji!,
-                                                    style: const TextStyle(
-                                                      fontSize: 40,
-                                                    ),
-                                                  )
-                                                : Icon(
-                                                    Icons.color_lens_rounded,
-                                                    size: 32,
-                                                    color: Colors.grey[300],
-                                                  ))
-                                          : null,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: GestureDetector(
-                                      onTap: () => _pickImage(false), // 로고 픽커
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFF8A80),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.camera_alt_rounded,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              child: GestureDetector(
+                                onTap: _showProfileSetupSheet,
+                                child: CircleAvatar(
+                                  radius: 48,
+                                  backgroundColor: isDefaultColor
+                                      ? Colors.white
+                                      : activeColor,
+                                  backgroundImage: _logoImage != null
+                                      ? (kIsWeb
+                                            ? NetworkImage(_logoImage!.path)
+                                            : FileImage(File(_logoImage!.path))
+                                                  as ImageProvider)
+                                      : null,
+                                  child: _logoImage == null
+                                      ? (_selectedEmoji != null
+                                            ? Text(
+                                                _selectedEmoji!,
+                                                style: const TextStyle(
+                                                  fontSize: 40,
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.color_lens_rounded,
+                                                size: 32,
+                                                color: Colors.grey[300],
+                                              ))
+                                      : null,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -467,71 +496,56 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 🌟 프로필 사진 탭 연결
                             Center(
                               child: GestureDetector(
-                                onTap: () => _pickImage(true), // 내 프사 픽커
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[200],
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: _localProfileImage != null
-                                          ? ClipOval(
-                                              child: kIsWeb
-                                                  ? Image.network(
-                                                      _localProfileImage!.path,
-                                                      fit: BoxFit.cover,
-                                                    )
-                                                  : Image.file(
-                                                      File(
-                                                        _localProfileImage!
-                                                            .path,
-                                                      ),
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                            )
-                                          : (_globalProfileImageUrl != null
-                                                ? ClipOval(
-                                                    child: Image.network(
-                                                      _globalProfileImageUrl!,
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                                  )
-                                                : Icon(
-                                                    Icons.person_rounded,
-                                                    size: 48,
-                                                    color: Colors.grey[400],
-                                                  )),
+                                onTap: () => _showImageActionMenu(
+                                  onPick: () => _pickImage(true, false),
+                                  onDelete: () => setState(() {
+                                    _localProfileImage = null;
+                                    _globalProfileImageUrl = null;
+                                  }),
+                                  hasImage:
+                                      _localProfileImage != null ||
+                                      _globalProfileImageUrl != null,
+                                ),
+                                child: Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
                                     ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFF8A80),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.camera_alt_rounded,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
+                                  child: _localProfileImage != null
+                                      ? ClipOval(
+                                          child: kIsWeb
+                                              ? Image.network(
+                                                  _localProfileImage!.path,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.file(
+                                                  File(
+                                                    _localProfileImage!.path,
+                                                  ),
+                                                  fit: BoxFit.cover,
+                                                ),
+                                        )
+                                      : (_globalProfileImageUrl != null
+                                            ? ClipOval(
+                                                child: Image.network(
+                                                  _globalProfileImageUrl!,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.person_rounded,
+                                                size: 48,
+                                                color: Colors.grey[400],
+                                              )),
                                 ),
                               ),
                             ),
@@ -540,7 +554,6 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                             const SizedBox(height: 12),
                             _buildTextField(_myNicknameController, '예) 든든한 첫째'),
                             const SizedBox(height: 24),
-                            // 🌟 생일 공개 체크박스 추가!
                             Row(
                               children: [
                                 SizedBox(

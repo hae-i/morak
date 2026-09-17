@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart'; // 🌟 메이슨리 패키지 임포트!
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../utils/color_utils.dart';
+import 'photo_viewer_screen.dart';
 
 class MeetupDetailScreen extends StatelessWidget {
   final Map<String, dynamic> meetup;
@@ -31,13 +32,14 @@ class MeetupDetailScreen extends StatelessWidget {
       meetup['location'] ?? '',
       meetup['menu'] ?? '',
     ].where((s) => s.toString().isNotEmpty).join(' · ');
-
     final photos = meetup['photos'] as List<dynamic>? ?? [];
+
+    // 🌟 사진 URL 리스트 추출
+    final imageUrls = photos.map((e) => e.toString()).toList();
 
     final attendanceIds = (meetup['attendances'] as List<dynamic>? ?? [])
         .map((att) => att['member_id'].toString())
         .toList();
-
     final attendees = groupMembers
         .where((m) => attendanceIds.contains(m['id'].toString()))
         .toList();
@@ -65,9 +67,9 @@ class MeetupDetailScreen extends StatelessWidget {
                   Text(
                     _formatDate(meetup['meet_date']),
                     style: TextStyle(
-                      color: activeColor,
+                      color: Colors.grey[700],
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -82,7 +84,6 @@ class MeetupDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
-
             if (attendees.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -120,25 +121,37 @@ class MeetupDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
             ],
-
-            // 🌟 3. 구글 이미지/핀터레스트 스타일의 메이슨리 그리드 뷰!
             if (photos.isNotEmpty) ...[
               const Divider(height: 1, color: Colors.black12),
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: MasonryGridView.count(
-                  crossAxisCount: 2, // 2열로 배치
-                  mainAxisSpacing: 8, // 세로 간격
-                  crossAxisSpacing: 8, // 가로 간격
-                  shrinkWrap: true, // 스크롤 뷰 안에 넣기 위해 필수
-                  physics: const NeverScrollableScrollPhysics(), // 부모의 스크롤을 따름
-                  itemCount: photos.length,
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: imageUrls.length,
                   itemBuilder: (context, index) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(12), // 모서리 둥글게!
-                      child: Image.network(
-                        photos[index].toString(),
-                        fit: BoxFit.cover, // 원본 비율을 유지하며 예쁘게 채움
+                    return GestureDetector(
+                      // 🌟 리스트 전체와 터치한 위치(index)를 넘겨줍니다!
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PhotoViewerScreen(
+                            imageUrls: imageUrls,
+                            initialIndex: index,
+                            groupMembers: groupMembers,
+                            activeColor: activeColor,
+                          ),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imageUrls[index],
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     );
                   },
