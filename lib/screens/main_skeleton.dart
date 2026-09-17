@@ -22,13 +22,16 @@ class _MainSkeletonState extends State<MainSkeleton> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // 가로 모드 감지 (600px 기준)
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
+
+    // 기존 폰 비율의 모바일 화면을 통째로 변수에
+    Widget mobileView = Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         backgroundColor: Colors.white,
-        // 🌟 하드코딩된 색상을 AppConstants.primaryColor 로 교체!
         selectedItemColor: AppConstants.primaryColor,
         unselectedItemColor: Colors.grey[400],
         showSelectedLabels: true,
@@ -48,5 +51,38 @@ class _MainSkeletonState extends State<MainSkeleton> {
         ],
       ),
     );
+
+    // 🌟 넓은 화면일 때는 가로로 분할하여 렌더링합니다.
+    if (isWideScreen) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Row(
+          children: [
+            // 💡 원래 있던 앱 메인 화면을 우측에 꽉
+            Expanded(child: mobileView),
+            // 💡 추후 데스크탑/패드용 메뉴가 들어갈 빈 사이드바 공간
+            Container(
+              width: 280,
+              color: Colors.grey[50],
+              child: const Center(
+                child: Text(
+                  '메뉴 사이드바\n(준비 중 ☁️)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(width: 1, thickness: 1, color: Colors.grey[200]),
+          ],
+        ),
+      );
+    }
+
+    // 좁은 화면은 그대로 렌더링
+    return mobileView;
   }
 }

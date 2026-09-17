@@ -287,6 +287,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     final activeColor = ColorUtils.stringToColor(_group!.themeColor);
     final isDefaultColor = activeColor == Colors.grey[200]!;
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
+
+    final memberDrawerWidget = MemberDrawer(
+      groupId: _group!.id,
+      groupName: _group!.name,
+      members: _rankedMembers,
+      activeColor: activeColor,
+      isDefaultColor: isDefaultColor,
+      onMembersUpdated: _loadAllData,
+      repository: _groupRepo,
+      onMemberTap: _showMemberProfileSheet,
+    );
 
     return PopScope(
       canPop: false,
@@ -296,16 +308,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: Colors.grey[50],
-        endDrawer: MemberDrawer(
-          groupId: _group!.id,
-          groupName: _group!.name,
-          members: _rankedMembers,
-          activeColor: activeColor,
-          isDefaultColor: isDefaultColor,
-          onMembersUpdated: _loadAllData,
-          repository: _groupRepo, // 🌟 [에러 해결] _repository -> _groupRepo 로 수정!
-          onMemberTap: _showMemberProfileSheet,
-        ),
+        endDrawer: isWideScreen ? null : memberDrawerWidget,
+
         appBar: AppBar(
           backgroundColor: Colors.grey[50],
           surfaceTintColor: Colors.transparent,
@@ -325,7 +329,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               icon: Icon(Icons.share_rounded, color: Colors.grey[800]),
               onPressed: () async {
                 final inviteLink =
-                    'morak://invite?groupId=${_group!.id}&groupName=${Uri.encodeComponent(_group!.name)}';
+                    'morak://invite?groupId=${_group!.id}&groupName=${_group!.name}';
                 await Clipboard.setData(ClipboardData(text: inviteLink));
                 if (mounted)
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -335,30 +339,49 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             ),
           ],
         ),
-        body: Column(
+
+        // 🌟 가로로 화면 쪼개기
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeaderInfo(activeColor, isDefaultColor),
-            const SizedBox(height: 16),
-            TabBar(
-              controller: _tabController,
-              indicatorColor: isDefaultColor ? Colors.grey[800] : activeColor,
-              labelColor: Colors.grey[800],
-              unselectedLabelColor: Colors.grey[400],
-              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              tabs: const [
-                Tab(text: '만남 기록'),
-                Tab(text: '추억 앨범 📸'),
-              ],
-            ),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
+              child: Column(
                 children: [
-                  _buildMeetupTab(activeColor, isDefaultColor),
-                  _buildAlbumTab(activeColor, isDefaultColor),
+                  _buildHeaderInfo(activeColor, isDefaultColor),
+                  const SizedBox(height: 16),
+                  TabBar(
+                    controller: _tabController,
+                    indicatorColor: isDefaultColor
+                        ? Colors.grey[800]
+                        : activeColor,
+                    labelColor: Colors.grey[800],
+                    unselectedLabelColor: Colors.grey[400],
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                    tabs: const [
+                      Tab(text: '만남 기록'),
+                      Tab(text: '추억 앨범 📸'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildMeetupTab(activeColor, isDefaultColor),
+                        _buildAlbumTab(activeColor, isDefaultColor),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
+
+            if (isWideScreen) ...[
+              VerticalDivider(width: 1, thickness: 1, color: Colors.grey[200]),
+              SizedBox(width: 320, child: memberDrawerWidget),
+            ],
           ],
         ),
       ),
@@ -368,6 +391,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   Widget _buildHeaderInfo(Color activeColor, bool isDefaultColor) {
     final bool hasCover = _group!.coverImageUrl != null;
     final bool hasLogo = _group!.logoImageUrl != null;
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
@@ -395,138 +419,167 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           ],
         ),
         child: Container(
+          height: 140,
           decoration: BoxDecoration(
+            color: hasCover
+                ? Colors.black
+                : (isDefaultColor
+                      ? Colors.grey[200]
+                      : activeColor.withOpacity(0.15)),
             borderRadius: BorderRadius.circular(24),
-            gradient: hasCover
-                ? const LinearGradient(
-                    colors: [Colors.black87, Colors.transparent],
-                    begin: Alignment.bottomLeft,
-                    end: Alignment.topRight,
+            image: hasCover
+                ? DecorationImage(
+                    image: NetworkImage(_group!.coverImageUrl!),
+                    fit: BoxFit.cover,
                   )
                 : null,
-          ),
-          padding: const EdgeInsets.all(24.0),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GroupInfoScreen(groupData: _group!),
-                    ),
-                  );
-                  if (result == 'deleted') {
-                    if (mounted) Navigator.pop(context, true);
-                  } else if (result == 'updated') {
-                    _loadAllData();
-                  }
-                },
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: hasCover ? Colors.white24 : Colors.white54,
-                    shape: BoxShape.circle,
-                    image: hasLogo
-                        ? DecorationImage(
-                            image: NetworkImage(_group!.logoImageUrl!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: hasLogo
-                      ? null
-                      : Center(
-                          child:
-                              (_group!.themeEmoji != null &&
-                                  _group!.themeEmoji!.isNotEmpty)
-                              ? Text(
-                                  _group!.themeEmoji!,
-                                  style: TextStyle(fontSize: 32),
-                                )
-                              : Icon(
-                                  Icons.groups_rounded,
-                                  color: hasCover
-                                      ? Colors.white
-                                      : (isDefaultColor
-                                            ? Colors.grey[400]
-                                            : activeColor),
-                                  size: 32,
-                                ),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _tabController.animateTo(0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${_meetups.length}',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: hasCover ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '만남 기록',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: hasCover
-                                  ? Colors.white70
-                                  : Colors.grey[600],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: hasCover ? Colors.white24 : Colors.black12,
-                    ),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${_rankedMembers.length}',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: hasCover ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '모임 멤버',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: hasCover
-                                  ? Colors.white70
-                                  : Colors.grey[600],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: hasCover
+                  ? const LinearGradient(
+                      colors: [Colors.black87, Colors.transparent],
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                    )
+                  : null,
+            ),
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            GroupInfoScreen(groupData: _group!),
+                      ),
+                    );
+                    if (result == 'deleted') {
+                      if (mounted) Navigator.pop(context, true);
+                    } else if (result == 'updated') {
+                      _loadAllData();
+                    }
+                  },
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: hasCover ? Colors.white24 : Colors.white54,
+                      shape: BoxShape.circle,
+                      image: hasLogo
+                          ? DecorationImage(
+                              image: NetworkImage(_group!.logoImageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: hasLogo
+                        ? null
+                        : Center(
+                            child:
+                                (_group!.themeEmoji != null &&
+                                    _group!.themeEmoji!.isNotEmpty)
+                                ? Text(
+                                    _group!.themeEmoji!,
+                                    style: const TextStyle(fontSize: 32),
+                                  )
+                                : Icon(
+                                    Icons.groups_rounded,
+                                    color: hasCover
+                                        ? Colors.white
+                                        : (isDefaultColor
+                                              ? Colors.grey[400]
+                                              : activeColor),
+                                    size: 32,
+                                  ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _tabController.animateTo(0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${_meetups.length}',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: hasCover ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '만남 기록',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: hasCover
+                                    ? Colors.white70
+                                    : Colors.grey[600],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: hasCover ? Colors.white24 : Colors.black12,
+                      ),
+
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (!isWideScreen)
+                            _scaffoldKey.currentState?.openEndDrawer();
+                        },
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${_rankedMembers.length}',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: hasCover ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '모임 멤버',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: hasCover
+                                    ? Colors.white70
+                                    : Colors.grey[600],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
