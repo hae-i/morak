@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../repositories/group_repository.dart';
 import '../../widgets/feed_card.dart';
 
@@ -22,27 +23,71 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   Future<void> _loadFeeds() async {
     setState(() => _isLoading = true);
-    // 임시: final data = await _repository.fetchAllFeeds();
-    // _feeds = data;
-    setState(() => _isLoading = false);
+    try {
+      final data = await _repository.fetchHomeFeeds();
+      if (mounted) setState(() => _feeds = data);
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('피드를 불러오지 못했습니다: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('모임 소식 📢')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-        itemCount: _feeds.length,
-        itemBuilder: (context, index) {
-          return FeedCard(
-            feed: _feeds[index],
-            onLike: () {
-              // 좋아요 로직 처리!
-            },
-          );
-        },
+      backgroundColor: Colors.grey[50], // 배경은 깔끔하게
+      appBar: AppBar(
+        title: const Text(
+          '모락모락 피드 ☁️',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.grey[50],
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadFeeds,
+        color: const Color(0xFFFF8A80),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+              )
+            : _feeds.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.photo_album_outlined,
+                      size: 64,
+                      color: Colors.grey[300],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '아직 모임에 기록된 피드가 없어요!\n모임에서 기록을 남겨보세요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                itemCount: _feeds.length,
+                itemBuilder: (context, index) {
+                  return FeedCard(
+                    feed: _feeds[index],
+                    onLike: () {
+                      // 좋아요 로직은 추후 고도화 시 구현!
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('좋아요 기능은 준비 중입니다! 💖')),
+                      );
+                    },
+                  );
+                },
+              ),
       ),
     );
   }
