@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../utils/invite_helper.dart';
 import '../../../utils/color_utils.dart';
 import '../../../utils/ui_utils.dart';
 import '../../../repositories/group_repository.dart';
@@ -44,16 +45,13 @@ class _MemberDrawerState extends State<MemberDrawer> {
   }
 
   Future<void> _copyInviteLink() async {
-    final encodedName = Uri.encodeComponent(widget.groupName);
-    final inviteLink =
-        'morak://invite?groupId=${widget.groupId}&groupName=$encodedName';
+    await InviteHelper.copyInviteLink(
+      context: context,
+      groupId: widget.groupId,
+    );
 
-    await Clipboard.setData(ClipboardData(text: inviteLink));
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🔗 초대 링크가 복사되었습니다! 카톡에 붙여넣기 해보세요!')),
-      );
     }
   }
 

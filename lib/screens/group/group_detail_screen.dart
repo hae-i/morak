@@ -10,7 +10,7 @@ import '../../repositories/group_repository.dart';
 import '../../models/group_model.dart';
 import '../../models/meetup_model.dart';
 import '../../models/member_model.dart';
-
+import '../../utils/invite_helper.dart';
 import 'meetup_create_screen.dart';
 import 'meetup_detail_screen.dart';
 import 'group_info_screen.dart';
@@ -327,14 +327,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           actions: [
             IconButton(
               icon: Icon(Icons.share_rounded, color: Colors.grey[800]),
-              onPressed: () async {
-                final inviteLink =
-                    'morak://invite?groupId=${_group!.id}&groupName=${_group!.name}';
-                await Clipboard.setData(ClipboardData(text: inviteLink));
-                if (mounted)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('🔗 초대 링크가 복사되었습니다!')),
-                  );
+              onPressed: () {
+                InviteHelper.copyInviteLink(
+                  context: context,
+                  groupId: _group!.id,
+                );
               },
             ),
           ],

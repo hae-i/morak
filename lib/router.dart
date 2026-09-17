@@ -45,16 +45,18 @@ final router = GoRouter(
       path: '/invite',
       builder: (context, state) {
         final groupId = state.uri.queryParameters['groupId'] ?? '';
-        final groupName = state.uri.queryParameters['groupName'] ?? '모임';
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (context) =>
-                GroupJoinSheet(groupId: groupId, groupName: groupName),
-          );
+            builder: (context) => GroupJoinSheet(
+              groupId: groupId, // 🌟 groupName 파라미터 삭제!
+            ),
+          ).then((_) {
+            if (context.mounted) context.go('/home');
+          });
         });
 
         return const MainSkeleton();

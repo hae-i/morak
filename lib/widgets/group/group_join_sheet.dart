@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // 🌟 Supabase 추가!
 
 import '../../constants/app_constants.dart';
 import '../../repositories/user_repository.dart';
@@ -7,13 +8,9 @@ import '../common/common_widgets.dart';
 
 class GroupJoinSheet extends StatefulWidget {
   final String groupId;
-  final String groupName;
+  // ❌ groupName은 더 이상 URL에서 안 받으므로 삭제!
 
-  const GroupJoinSheet({
-    super.key,
-    required this.groupId,
-    required this.groupName,
-  });
+  const GroupJoinSheet({super.key, required this.groupId});
 
   @override
   State<GroupJoinSheet> createState() => _GroupJoinSheetState();
@@ -26,13 +23,15 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
   String? _globalProfileImageUrl;
   bool _isBirthdayPublic = true;
 
+  String _fetchedGroupName = '모임'; // 🌟 DB에서 가져올 모임 이름 저장소
+
   final _userRepo = UserRepository();
   final _groupRepo = GroupRepository();
 
   @override
   void initState() {
     super.initState();
-    _loadGlobalProfile();
+    _loadInitialData(); // 🌟 이름 변경!
   }
 
   @override
@@ -41,19 +40,37 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
     super.dispose();
   }
 
-  Future<void> _loadGlobalProfile() async {
+  // 🌟 프로필 + 모임 이름 한방에 가져오기
+  Future<void> _loadInitialData() async {
     try {
+      // 1. 프로필 정보 가져오기
       final profile = await _userRepo.fetchMyGlobalProfile();
-      if (profile != null && mounted) {
+
+      // 2. 모임 이름 가져오기 (테이블명이 다를 수 있으니 'groups'를 실제 DB 테이블명에 맞게 변경해주세요!)
+      String tempGroupName = '모임';
+      try {
+        final groupData = await Supabase.instance.client
+            .from('groups')
+            .select('name')
+            .eq('id', widget.groupId)
+            .single();
+        tempGroupName = groupData['name'];
+      } catch (e) {
+        debugPrint('🚨 모임 이름 불러오기 실패: $e');
+      }
+
+      if (mounted) {
         setState(() {
-          _nicknameController.text = profile.displayName;
-          _globalProfileImageUrl = profile.profileImageUrl;
+          _fetchedGroupName = tempGroupName; // 가져온 이름 적용!
+          if (profile != null) {
+            _nicknameController.text = profile.displayName;
+            _globalProfileImageUrl = profile.profileImageUrl;
+          }
           _isLoading = false;
         });
-      } else {
-        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
+      debugPrint('🚨 초기 데이터 불러오기 실패: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -74,7 +91,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🎉 ${widget.groupName} 모임에 가입되었습니다!'),
+            content: Text('🎉 $_fetchedGroupName 모임에 가입되었습니다!'), // 🌟 여기도 변경!
             backgroundColor: AppConstants.primaryColor,
           ),
         );
@@ -127,7 +144,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  '💌 ${widget.groupName}',
+                  '💌 $_fetchedGroupName', // 🌟 여기도 변경!
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[500],
