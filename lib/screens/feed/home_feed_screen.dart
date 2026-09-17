@@ -5,15 +5,37 @@ import '../../constants/app_constants.dart';
 import '../../providers/feed_provider.dart';
 import '../../widgets/feed/feed_card.dart';
 
-// 🌟 1. StatefulWidget 대신 ConsumerWidget 을 상속
-class HomeFeedScreen extends ConsumerWidget {
+// 🌟 스크롤 컨트롤러 ConsumerStatefulWidget
+class HomeFeedScreen extends ConsumerStatefulWidget {
   const HomeFeedScreen({super.key});
-
-  // 🌟 2. build 함수에 WidgetRef ref 가 추가 (이 ref 로 데이터를 구독함)
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 🌟 3. setState 다 날리고, 한 줄로 데이터 구독
-    // ref.watch 는 데이터가 바뀌면 화면을 알아서 다시 그려줍니다.
+  ConsumerState<HomeFeedScreen> createState() => _HomeFeedScreenState();
+}
+
+class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // 🌟 스크롤을 내릴 때마다 이 함수가 실행
+    _scrollController.addListener(() {
+      // 💡 현재 스크롤 위치가 맨 밑바닥에서 50픽셀 이내로 가까워지면?
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 50) {
+        ref.read(feedProvider.notifier).loadMore();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final feedState = ref.watch(feedProvider);
 
     return Scaffold(
@@ -28,11 +50,8 @@ class HomeFeedScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
       ),
       body: RefreshIndicator(
-        // 🌟 4. 새로고침 로직도 ref.refresh 로 단 한 줄
         onRefresh: () async => ref.refresh(feedProvider.future),
         color: AppConstants.primaryColor,
-
-        // 🌟 5. feedState의 3가지 상태(로딩중, 에러남, 데이터옴)에 따라 화면을 분기처리
         child: feedState.when(
           loading: () => const Center(
             child: CircularProgressIndicator(color: AppConstants.primaryColor),
@@ -40,7 +59,6 @@ class HomeFeedScreen extends ConsumerWidget {
           error: (error, stack) =>
               Center(child: Text('피드를 불러오지 못했습니다: $error')),
           data: (feeds) {
-            // 데이터가 도착했을 때의 화면 (기존 로직과 동일)
             if (feeds.isEmpty) {
               return Center(
                 child: Column(
@@ -62,8 +80,30 @@ class HomeFeedScreen extends ConsumerWidget {
               );
             }
             return ListView.builder(
-              itemCount: feeds.length,
+              controller: _scrollController, // 🌟 감지기를 리스트에 부착
+              physics:
+                  const AlwaysScrollableScrollPhysics(), // 내용이 적어도 당겨서 새로고침 되도록
+              itemCount: feeds.length + 1, // 🌟 로딩 스피너를 보여주기 위해 +1
               itemBuilder: (context, index) {
+                // 💡 맨 마지막 아이템을 그릴 차례일 때
+                if (index == feeds.length) {
+                  // 더 가져올 데이터가 남아있다면 로딩 스피너를 띄움
+                  final hasMore = ref.read(feedProvider.notifier).hasMore;
+                  if (hasMore) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppConstants.primaryColor,
+                        ),
+                      ),
+                    );
+                  }
+                  // 데이터가 더 이상 없으면 빈 공간만
+                  return const SizedBox(height: 40);
+                }
+
+                // 정상적으로 피드 카드 그리기
                 return FeedCard(
                   feed: feeds[index],
                   onLike: () {

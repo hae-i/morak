@@ -8,11 +8,13 @@ class MeetupRepository {
 
   // 🌟 홈 화면 피드(최근 만남 순) 가져오기!
   // 용도: HomeFeedScreen 전체를 채워줌
-  Future<List<MeetupModel>> fetchHomeFeeds() async {
+  Future<List<MeetupModel>> fetchHomeFeeds({
+    int offset = 0,
+    int limit = 5,
+  }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
 
-    // 내가 속한 모임 ID들 싹 긁어오기
     final memberData = await _client
         .from('group_members')
         .select('group_id')
@@ -20,12 +22,12 @@ class MeetupRepository {
     final groupIds = memberData.map((e) => e['group_id']).toList();
     if (groupIds.isEmpty) return [];
 
-    // 💡 inFilter 로 내가 속한 모임들의 만남 기록만 쏙쏙 빼옵니다! (그룹 정보도 묶어서)
     final feedsData = await _client
         .from('meetups')
         .select('*, groups(id, name, theme_emoji, theme_color, logo_image_url)')
         .inFilter('group_id', groupIds)
-        .order('meet_date', ascending: false);
+        .order('meet_date', ascending: false)
+        .range(offset, offset + limit - 1);
 
     return feedsData.map((m) => MeetupModel.fromJson(m)).toList();
   }
