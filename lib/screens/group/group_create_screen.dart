@@ -6,7 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../constants/app_constants.dart';
-import '../../utils/color_utils.dart';
+import '../../utils/ui_utils.dart'; // 🌟 공통 팝업 임포트!
+import '../../widgets/common_widgets.dart'; // 🌟 공통 UI 위젯 임포트!
 import '../../repositories/group_repository.dart';
 import '../../widgets/profile_setup_sheet.dart';
 
@@ -41,6 +42,14 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     _loadGlobalProfile();
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _nameController.dispose();
+    _myNicknameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadGlobalProfile() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -60,91 +69,22 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _nameController.dispose();
-    _myNicknameController.dispose();
-    super.dispose();
-  }
-
-  // 🌟 카톡 스타일의 스마트한 하단 사진 액션 메뉴!
-  void _showImageActionMenu({
-    required VoidCallback onPick,
-    required VoidCallback onDelete,
-    required bool hasImage,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_rounded,
-                  color: Colors.black87,
-                ),
-                title: const Text(
-                  '앨범에서 사진 선택',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  onPick();
-                },
-              ),
-              if (hasImage)
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.redAccent,
-                  ),
-                  title: const Text(
-                    '사진 삭제하기',
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onDelete();
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _pickImage(bool isProfile, bool isCover) async {
-    try {
-      final pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: isCover ? 1080 : 512,
-        maxHeight: isCover ? 1080 : 512,
-        imageQuality: 80,
-      );
-      if (pickedFile != null) {
-        setState(() {
-          if (isCover)
-            _coverImage = pickedFile;
-          else if (isProfile)
-            _localProfileImage = pickedFile;
-          else
-            _logoImage = pickedFile;
-        });
-      }
-    } catch (e) {
-      debugPrint('$e');
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: isCover ? 1080 : 512,
+      maxHeight: isCover ? 1080 : 512,
+      imageQuality: 80,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        if (isCover)
+          _coverImage = pickedFile;
+        else if (isProfile)
+          _localProfileImage = pickedFile;
+        else
+          _logoImage = pickedFile;
+      });
     }
   }
 
@@ -174,74 +114,6 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         }
       });
     }
-  }
-
-  void _showWarningDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.error_outline_rounded,
-                  color: Colors.orange,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8A80),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '확인',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _createGroup() async {
@@ -293,53 +165,17 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     }
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Colors.grey[800],
-      ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String hint) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400]),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFFF8A80), width: 1.5),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final activeColor = _selectedColorIndex != null
         ? AppConstants.themeColors[_selectedColorIndex!]
         : Colors.grey[200]!;
-    final isDefaultColor = _selectedColorIndex == null;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
-          _currentPage == 0 ? '새 모임 만들기 ☁️' : '모임 프로필 설정 👤',
+          _currentPage == 0 ? '새 모임 만들기 ☁️' : '모임 프로필 설정',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.grey[50],
@@ -367,6 +203,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
+                // 🌟 PAGE 1: 모임 정보
                 CustomScrollView(
                   slivers: [
                     SliverFillRemaining(
@@ -377,9 +214,10 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 🌟 커버 사진 탭 연결
                             GestureDetector(
-                              onTap: () => _showImageActionMenu(
+                              // 💡 UiUtils로 한 줄 컷!
+                              onTap: () => UiUtils.showImageActionMenu(
+                                context: context,
                                 onPick: () => _pickImage(false, true),
                                 onDelete: () =>
                                     setState(() => _coverImage = null),
@@ -430,36 +268,18 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                               ),
                             ),
                             const SizedBox(height: 32),
-                            // 🌟 로고 탭 연결 (테마 설정 팝업)
+
+                            // 💡 EditableAvatar 레고 블록으로 한 줄 컷!
                             Center(
-                              child: GestureDetector(
+                              child: EditableAvatar(
+                                radius: 48,
+                                backgroundColor: _selectedColorIndex == null
+                                    ? Colors.white
+                                    : activeColor,
+                                localImage: _logoImage,
+                                emoji: _selectedEmoji,
+                                fallbackIcon: Icons.color_lens_rounded,
                                 onTap: _showProfileSetupSheet,
-                                child: CircleAvatar(
-                                  radius: 48,
-                                  backgroundColor: isDefaultColor
-                                      ? Colors.white
-                                      : activeColor,
-                                  backgroundImage: _logoImage != null
-                                      ? (kIsWeb
-                                            ? NetworkImage(_logoImage!.path)
-                                            : FileImage(File(_logoImage!.path))
-                                                  as ImageProvider)
-                                      : null,
-                                  child: _logoImage == null
-                                      ? (_selectedEmoji != null
-                                            ? Text(
-                                                _selectedEmoji!,
-                                                style: const TextStyle(
-                                                  fontSize: 40,
-                                                ),
-                                              )
-                                            : Icon(
-                                                Icons.color_lens_rounded,
-                                                size: 32,
-                                                color: Colors.grey[300],
-                                              ))
-                                      : null,
-                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -474,11 +294,13 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                               ),
                             ),
                             const SizedBox(height: 40),
-                            _buildSectionTitle('모임 이름'),
+
+                            // 💡 CustomTextField 레고 블록으로 두 줄 컷!
+                            const SectionTitle('모임 이름'),
                             const SizedBox(height: 12),
-                            _buildTextField(
-                              _nameController,
-                              '예) 모락모락 가족모임 👨‍👩‍👧‍👦',
+                            CustomTextField(
+                              controller: _nameController,
+                              hint: '예) 모락모락 가족모임 👨‍👩‍👧‍👦',
                             ),
                           ],
                         ),
@@ -486,6 +308,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                     ),
                   ],
                 ),
+                // 🌟 PAGE 2: 프로필 설정
                 CustomScrollView(
                   slivers: [
                     SliverFillRemaining(
@@ -496,10 +319,16 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 🌟 프로필 사진 탭 연결
+                            // 💡 EditableAvatar 레고 블록으로 한 줄 컷!
                             Center(
-                              child: GestureDetector(
-                                onTap: () => _showImageActionMenu(
+                              child: EditableAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.grey[200]!,
+                                localImage: _localProfileImage,
+                                networkImageUrl: _globalProfileImageUrl,
+                                fallbackIcon: Icons.person_rounded,
+                                onTap: () => UiUtils.showImageActionMenu(
+                                  context: context,
                                   onPick: () => _pickImage(true, false),
                                   onDelete: () => setState(() {
                                     _localProfileImage = null;
@@ -509,50 +338,18 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                       _localProfileImage != null ||
                                       _globalProfileImageUrl != null,
                                 ),
-                                child: Container(
-                                  width: 100,
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: _localProfileImage != null
-                                      ? ClipOval(
-                                          child: kIsWeb
-                                              ? Image.network(
-                                                  _localProfileImage!.path,
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : Image.file(
-                                                  File(
-                                                    _localProfileImage!.path,
-                                                  ),
-                                                  fit: BoxFit.cover,
-                                                ),
-                                        )
-                                      : (_globalProfileImageUrl != null
-                                            ? ClipOval(
-                                                child: Image.network(
-                                                  _globalProfileImageUrl!,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              )
-                                            : Icon(
-                                                Icons.person_rounded,
-                                                size: 48,
-                                                color: Colors.grey[400],
-                                              )),
-                                ),
                               ),
                             ),
                             const SizedBox(height: 40),
-                            _buildSectionTitle('이 모임에서 사용할 닉네임'),
+
+                            // 💡 CustomTextField 레고 블록으로 두 줄 컷!
+                            const SectionTitle('이 모임에서 사용할 닉네임'),
                             const SizedBox(height: 12),
-                            _buildTextField(_myNicknameController, '예) 든든한 첫째'),
+                            CustomTextField(
+                              controller: _myNicknameController,
+                              hint: '예) 든든한 첫째',
+                            ),
+
                             const SizedBox(height: 24),
                             Row(
                               children: [
@@ -595,9 +392,10 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               onPressed: () {
                 if (_currentPage == 0) {
                   if (_nameController.text.trim().isEmpty) {
-                    _showWarningDialog(
-                      '모임 이름이 비어있어요!',
-                      '어떤 모임인지 알 수 있게\n멋진 이름을 지어주세요. ☁️',
+                    UiUtils.showWarningDialog(
+                      context: context,
+                      title: '모임 이름이 비어있어요!',
+                      message: '어떤 모임인지 알 수 있게\n멋진 이름을 지어주세요. ☁️',
                     );
                     return;
                   }
@@ -608,9 +406,10 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                   setState(() => _currentPage = 1);
                 } else {
                   if (_myNicknameController.text.trim().isEmpty) {
-                    _showWarningDialog(
-                      '닉네임이 비어있어요!',
-                      '모임원들이 알아볼 수 있게\n닉네임을 꼭 입력해 주세요. 👤',
+                    UiUtils.showWarningDialog(
+                      context: context,
+                      title: '닉네임이 비어있어요!',
+                      message: '모임원들이 알아볼 수 있게\n닉네임을 꼭 입력해 주세요. 👤',
                     );
                     return;
                   }

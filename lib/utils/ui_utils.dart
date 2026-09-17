@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UiUtils {
-  // 🌟 1. 공통 모던 다이얼로그
+  // 🌟 1. 공통 모던 다이얼로그 (확인/취소 묻기)
   static Future<bool?> showBeautifulDialog({
     required BuildContext context,
     required String title,
@@ -102,7 +102,80 @@ class UiUtils {
     );
   }
 
-  // 🌟 2. 공통 카톡 액션 메뉴 (사진 선택/삭제)
+  // 🌟 2. 공통 경고창 (빈칸 알림 등 - 요게 추가된 녀석입니다!)
+  static void showWarningDialog({
+    required BuildContext context,
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.orange,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF8A80),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    '확인',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🌟 3. 카톡 스타일 하단 사진 액션 메뉴 (앨범/삭제)
   static void showImageActionMenu({
     required BuildContext context,
     required VoidCallback onPick,
