@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../utils/ui_utils.dart'; // 🌟 공통 팝업
+import '../../widgets/common_widgets.dart'; // 🌟 공통 위젯
 import '../../repositories/group_repository.dart';
 
 class MeetupCreateScreen extends StatefulWidget {
@@ -16,7 +18,6 @@ class MeetupCreateScreen extends StatefulWidget {
     required this.groupId,
     this.initialMeetup,
   });
-
   @override
   State<MeetupCreateScreen> createState() => _MeetupCreateScreenState();
 }
@@ -33,10 +34,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   final Set<String> _selectedMemberIds = {};
 
   final ImagePicker _picker = ImagePicker();
-
-  // 🌟 [당근마켓 스타일] 사진들을 순서대로 담아둘 통합 리스트! (String URL 또는 XFile 객체)
   List<dynamic> _photos = [];
-
   final _repository = GroupRepository();
 
   @override
@@ -62,13 +60,10 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         _titleController.text = widget.initialMeetup!['title'] ?? '';
         _locationController.text = widget.initialMeetup!['location'] ?? '';
         _menuController.text = widget.initialMeetup!['menu'] ?? '';
-        if (widget.initialMeetup!['meet_date'] != null) {
+        if (widget.initialMeetup!['meet_date'] != null)
           _selectedDate = DateTime.parse(widget.initialMeetup!['meet_date']);
-        }
-        if (widget.initialMeetup!['photos'] != null) {
-          // 기존 사진 URL들을 리스트에 쏙 넣습니다.
+        if (widget.initialMeetup!['photos'] != null)
           _photos = List<dynamic>.from(widget.initialMeetup!['photos']);
-        }
         final attendances = await _repository.fetchAttendances(
           widget.initialMeetup!['id'],
         );
@@ -152,83 +147,12 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         maxHeight: 1080,
         imageQuality: 80,
       );
-      if (pickedFiles.isNotEmpty) {
-        // 새로 고른 사진을 리스트 뒤에 착착 이어 붙입니다.
-        setState(() => _photos.addAll(pickedFiles));
-      }
+      if (pickedFiles.isNotEmpty) setState(() => _photos.addAll(pickedFiles));
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다: $e')));
     }
-  }
-
-  void _showWarningDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.error_outline_rounded,
-                  color: Colors.orange,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8A80),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '확인',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _saveMeetup() async {
@@ -237,7 +161,12 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     final menu = _menuController.text.trim();
 
     if (title.isEmpty && location.isEmpty && menu.isEmpty && _photos.isEmpty) {
-      _showWarningDialog('빈 기록이에요!', '제목, 장소, 사진 중\n최소 하나는 기록을 남겨주세요. ☁️');
+      // 💡 UiUtils 한 줄 컷!
+      UiUtils.showWarningDialog(
+        context: context,
+        title: '빈 기록이에요!',
+        message: '제목, 장소, 사진 중\n최소 하나는 기록을 남겨주세요. ☁️',
+      );
       return;
     }
 
@@ -251,7 +180,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         meetDate: _selectedDate.toIso8601String(),
         location: location,
         menu: menu,
-        photos: _photos, // 🌟 통합 리스트 통째로 넘기기!
+        photos: _photos,
         memberIds: _selectedMemberIds,
       );
 
@@ -277,47 +206,9 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     }
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Colors.grey[800],
-      ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String hint) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400]),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFFF8A80), width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  // 🌟 [핵심] 당근마켓 스타일의 스마트한 사진 미리보기!
   Widget _buildImagePreview(int index, dynamic item) {
-    final bool isRepresentative = index == 0; // 첫 번째 사진이 무조건 대표!
-
+    final bool isRepresentative = index == 0;
     return GestureDetector(
-      // 💡 사진을 누르면 맨 앞으로 이동시킴!
       onTap: () {
         if (!isRepresentative) {
           setState(() {
@@ -343,7 +234,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         decoration: BoxDecoration(
           border: isRepresentative
               ? Border.all(color: const Color(0xFFFF8A80), width: 3)
-              : null, // 대표 사진은 테두리로 강조!
+              : null,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Stack(
@@ -364,7 +255,6 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                             )),
               ),
             ),
-            // 삭제 버튼 (우측 상단)
             Positioned(
               top: 4,
               right: 4,
@@ -380,7 +270,6 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 ),
               ),
             ),
-            // 대표 뱃지 (좌측 상단)
             if (isRepresentative)
               Positioned(
                 top: 0,
@@ -432,12 +321,15 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('무슨 만남이었나요?'),
-            const SizedBox(height: 12),
-            _buildTextField(_titleController, '예) 모락이 생일파티 🎂'),
+            // 💡 SectionTitle과 CustomTextField 레고 블록 도입!
+            const SectionTitle('무슨 만남이었나요?'), const SizedBox(height: 12),
+            CustomTextField(
+              controller: _titleController,
+              hint: '예) 모락이 생일파티 🎂',
+            ),
             const SizedBox(height: 24),
-            _buildSectionTitle('만난 날짜'),
-            const SizedBox(height: 12),
+
+            const SectionTitle('만난 날짜'), const SizedBox(height: 12),
             InkWell(
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(16),
@@ -467,8 +359,8 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            _buildSectionTitle('누가 참석했나요?'),
-            const SizedBox(height: 12),
+
+            const SectionTitle('누가 참석했나요?'), const SizedBox(height: 12),
             _members.isEmpty
                 ? Text(
                     '등록된 멤버가 없어요.\n이전 화면에서 멤버를 먼저 추가해주세요!',
@@ -491,10 +383,11 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                         selected: isSelected,
                         onSelected: (bool selected) {
                           setState(() {
-                            if (selected)
+                            if (selected) {
                               _selectedMemberIds.add(memberId);
-                            else
+                            } else {
                               _selectedMemberIds.remove(memberId);
+                            }
                           });
                         },
                         selectedColor: const Color(0xFFFF8A80),
@@ -516,7 +409,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildSectionTitle('추억 사진 (선택)'),
+                const SectionTitle('추억 사진 (선택)'),
                 const SizedBox(width: 8),
                 Text(
                   '사진을 터치하면 대표로 지정돼요!',
@@ -566,7 +459,6 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                       ),
                     ),
                   ),
-                  // 🌟 통합된 _photos 리스트를 순서대로 뿌려줍니다!
                   ..._photos.asMap().entries.map(
                     (entry) => _buildImagePreview(entry.key, entry.value),
                   ),
@@ -575,13 +467,18 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             ),
             const SizedBox(height: 24),
 
-            _buildSectionTitle('장소'),
-            const SizedBox(height: 12),
-            _buildTextField(_locationController, '예) 구로몬 시장, 도톤보리'),
+            const SectionTitle('장소'), const SizedBox(height: 12),
+            CustomTextField(
+              controller: _locationController,
+              hint: '예) 구로몬 시장, 도톤보리',
+            ),
             const SizedBox(height: 24),
-            _buildSectionTitle('메뉴'),
-            const SizedBox(height: 12),
-            _buildTextField(_menuController, '예) 오코노미야키, 생맥주 🍻'),
+
+            const SectionTitle('메뉴'), const SizedBox(height: 12),
+            CustomTextField(
+              controller: _menuController,
+              hint: '예) 오코노미야키, 생맥주 🍻',
+            ),
             const SizedBox(height: 40),
 
             SizedBox(

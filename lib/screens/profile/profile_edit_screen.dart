@@ -5,53 +5,29 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../utils/ui_utils.dart'; // 🌟 공통 팝업
+import '../../widgets/common_widgets.dart'; // 🌟 공통 위젯
+
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
-
   @override
   State<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final TextEditingController _nicknameController = TextEditingController();
-
   DateTime? _selectedBirthday;
   bool _isLoading = true;
   bool _isSaving = false;
 
   final ImagePicker _picker = ImagePicker();
-  XFile? _localProfileImage; // 갤러리에서 새로 고른 사진
-  String? _existingProfileImageUrl; // DB에 있던 기존 사진
+  XFile? _localProfileImage;
+  String? _existingProfileImageUrl;
 
   @override
   void initState() {
     super.initState();
     _loadMyProfile();
-  }
-
-  // 🌟 내 기존 정보 불러오기
-  Future<void> _loadMyProfile() async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      final data = await Supabase.instance.client
-          .from('users')
-          .select('display_name, profile_image_url, birthday')
-          .eq('id', user.id)
-          .single();
-
-      setState(() {
-        _nicknameController.text = data['display_name'] ?? '';
-        _existingProfileImageUrl = data['profile_image_url'];
-        if (data['birthday'] != null) {
-          _selectedBirthday = DateTime.parse(data['birthday']);
-        }
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -60,9 +36,30 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     super.dispose();
   }
 
+  Future<void> _loadMyProfile() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      final data = await Supabase.instance.client
+          .from('users')
+          .select('display_name, profile_image_url, birthday')
+          .eq('id', user.id)
+          .single();
+      setState(() {
+        _nicknameController.text = data['display_name'] ?? '';
+        _existingProfileImageUrl = data['profile_image_url'];
+        if (data['birthday'] != null)
+          _selectedBirthday = DateTime.parse(data['birthday']);
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(
+      final pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 512,
         maxHeight: 512,
@@ -77,7 +74,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _pickBirthday() async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedBirthday ?? DateTime(1996, 3, 12),
       firstDate: DateTime(1900),
@@ -95,35 +92,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Future<void> _updateProfile() async {
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('닉네임을 입력해 주세요!')));
+      UiUtils.showWarningDialog(
+        context: context,
+        title: '닉네임이 비어있어요!',
+        message: '사용하실 닉네임을 꼭 입력해 주세요.',
+      );
       return;
     }
 
     setState(() => _isSaving = true);
-
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) throw '로그인 정보가 없습니다.';
-
       String? finalImageUrl = _existingProfileImageUrl;
 
       if (_localProfileImage != null) {
-        final bytes = await _localProfileImage!.readAsBytes();
         final ext = _localProfileImage!.name.split('.').last.toLowerCase();
         final fileName = '${currentUser.id}.$ext';
-        final filePath = 'avatars/$fileName';
-
         await Supabase.instance.client.storage
             .from('profiles')
             .uploadBinary(
-              filePath,
-              bytes,
+              'avatars/$fileName',
+              await _localProfileImage!.readAsBytes(),
               fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
             );
         finalImageUrl = Supabase.instance.client.storage
             .from('profiles')
-            .getPublicUrl(filePath);
+            .getPublicUrl('avatars/$fileName');
       }
 
       await Supabase.instance.client
@@ -138,7 +133,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('🎉 프로필이 수정되었습니다!')));
-        Navigator.pop(context, true); // 수정 성공 후 마이페이지로 돌아감!
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted)
@@ -147,62 +142,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
-  }
-
-  void _showImageActionMenu({
-    required VoidCallback onPick,
-    required VoidCallback onDelete,
-    required bool hasImage,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_rounded,
-                  color: Colors.black87,
-                ),
-                title: const Text(
-                  '앨범에서 사진 선택',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  onPick();
-                },
-              ),
-              if (hasImage)
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.redAccent,
-                  ),
-                  title: const Text(
-                    '사진 삭제하기',
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onDelete();
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -227,10 +166,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 💡 EditableAvatar 레고 블록 도입!
                   Center(
-                    child: GestureDetector(
-                      // 🌟 메뉴 연동!
-                      onTap: () => _showImageActionMenu(
+                    child: EditableAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.grey[100]!,
+                      localImage: _localProfileImage,
+                      networkImageUrl: _existingProfileImageUrl,
+                      fallbackIcon: Icons.person_rounded,
+                      // 💡 UiUtils 카톡 액션 메뉴 연동!
+                      onTap: () => UiUtils.showImageActionMenu(
+                        context: context,
                         onPick: _pickImage,
                         onDelete: () => setState(() {
                           _localProfileImage = null;
@@ -240,75 +186,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             _localProfileImage != null ||
                             _existingProfileImageUrl != null,
                       ),
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey[200]!),
-                        ),
-                        child: _localProfileImage != null
-                            ? ClipOval(
-                                child: kIsWeb
-                                    ? Image.network(
-                                        _localProfileImage!.path,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Image.file(
-                                        File(_localProfileImage!.path),
-                                        fit: BoxFit.cover,
-                                      ),
-                              )
-                            : (_existingProfileImageUrl != null
-                                  ? ClipOval(
-                                      child: Image.network(
-                                        _existingProfileImageUrl!,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.person_rounded,
-                                      size: 48,
-                                      color: Colors.grey[300],
-                                    )),
-                      ),
                     ),
                   ),
                   const SizedBox(height: 40),
 
-                  const Text(
-                    '닉네임',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
+                  // 💡 SectionTitle 과 CustomTextField 도입!
+                  const SectionTitle('닉네임'), const SizedBox(height: 8),
+                  CustomTextField(
                     controller: _nicknameController,
-                    maxLength: 15,
-                    decoration: InputDecoration(
-                      hintText: '예: 모락대장',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFFF8A80),
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
+                    hint: '예: 모락대장',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  const Text(
-                    '생년월일',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
+                  const SectionTitle('생년월일'), const SizedBox(height: 8),
                   InkWell(
                     onTap: _pickBirthday,
                     borderRadius: BorderRadius.circular(16),

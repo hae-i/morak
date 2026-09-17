@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../constants/app_constants.dart';
 import '../../utils/color_utils.dart';
+import '../../utils/ui_utils.dart'; // 🌟 공통 팝업 임포트
+import '../../widgets/common_widgets.dart'; // 🌟 공통 위젯 임포트
 import '../../repositories/group_repository.dart';
 import '../../widgets/profile_setup_sheet.dart';
 
@@ -23,116 +25,19 @@ class GroupInfoScreen extends StatefulWidget {
 }
 
 class _GroupInfoScreenState extends State<GroupInfoScreen> {
-  // 모던 다이얼로그
-  Future<bool?> _showBeautifulDialog(
-    String title,
-    String content,
-    String confirmText,
-    Color confirmColor,
-    IconData icon,
-  ) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: confirmColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: confirmColor, size: 32),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                content,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey[600],
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        backgroundColor: Colors.grey[100],
-                      ),
-                      child: const Text(
-                        '취소',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: confirmColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        confirmText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _deleteGroup() async {
-    final confirm = await _showBeautifulDialog(
-      '모임 삭제',
-      '정말 이 모임을 삭제할까요?\n모든 기록이 함께 사라집니다.',
-      '삭제하기',
-      Colors.redAccent,
-      Icons.delete_forever_rounded,
+    // 💡 UiUtils 한 줄 컷!
+    final confirm = await UiUtils.showBeautifulDialog(
+      context: context,
+      title: '모임 삭제',
+      content: '정말 이 모임을 삭제할까요?\n모든 기록이 함께 사라집니다.',
+      confirmText: '삭제하기',
+      confirmColor: Colors.redAccent,
+      icon: Icons.delete_forever_rounded,
     );
     if (confirm == true) {
       await widget.repository.deleteGroup(widget.groupData['id']);
-      if (mounted) Navigator.pop(context, 'deleted'); // 삭제되었다고 이전 화면에 알려줌
+      if (mounted) Navigator.pop(context, 'deleted');
     }
   }
 
@@ -149,7 +54,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         initialCoverUrl: widget.groupData['cover_image_url'],
         initialLogoUrl: widget.groupData['logo_image_url'],
         repository: widget.repository,
-        onUpdated: () => Navigator.pop(context, 'updated'), // 수정되었다고 이전 화면에 알려줌
+        onUpdated: () => Navigator.pop(context, 'updated'),
       ),
     );
   }
@@ -178,7 +83,6 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // 🌟 큼직한 프로필 표시
             Container(
               height: 200,
               width: double.infinity,
@@ -238,7 +142,6 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             ),
             const SizedBox(height: 48),
 
-            // 🌟 수정 / 삭제 리스트
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -305,13 +208,13 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 }
 
-// 💡 그룹 수정용 바텀시트 (GroupDetailScreen에 있던 걸 이쪽으로 옮겼습니다!)
 class _GroupEditSheet extends StatefulWidget {
   final String groupId, initialName;
   final String? initialEmoji, initialColor, initialCoverUrl, initialLogoUrl;
   final GroupRepository repository;
   final VoidCallback onUpdated;
   const _GroupEditSheet({
+    super.key,
     required this.groupId,
     required this.initialName,
     this.initialEmoji,
@@ -333,12 +236,16 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
   String? _selectedEmoji;
   int? _selectedColorIndex;
   bool _isSaving = false;
+  String? _existingCoverUrl;
+  String? _existingLogoUrl;
 
   @override
   void initState() {
     super.initState();
     _nameController.text = widget.initialName;
     _selectedEmoji = widget.initialEmoji;
+    _existingCoverUrl = widget.initialCoverUrl;
+    _existingLogoUrl = widget.initialLogoUrl;
     if (widget.initialColor != null) {
       final val = int.tryParse(widget.initialColor!) ?? Colors.grey[200]!.value;
       for (int i = 0; i < AppConstants.themeColors.length; i++) {
@@ -388,8 +295,15 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
     );
     if (result != null)
       setState(() {
-        _selectedEmoji = result['emoji'];
-        _selectedColorIndex = result['colorIndex'];
+        if (result['image'] != null) {
+          _localLogo = result['image'];
+          _selectedEmoji = null;
+        } else {
+          _selectedEmoji = result['emoji'];
+          _selectedColorIndex = result['colorIndex'];
+          _localLogo = null;
+          _existingLogoUrl = null;
+        }
       });
   }
 
@@ -407,9 +321,9 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
         colorStr,
         _selectedEmoji,
         _localCover,
-        widget.initialCoverUrl,
+        _existingCoverUrl,
         _localLogo,
-        widget.initialLogoUrl,
+        _existingLogoUrl,
       );
       if (mounted) {
         Navigator.pop(context);
@@ -456,7 +370,16 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
           ),
           const SizedBox(height: 32),
           GestureDetector(
-            onTap: () => _pickImage(true),
+            // 💡 UiUtils 카톡 액션 메뉴 연동!
+            onTap: () => UiUtils.showImageActionMenu(
+              context: context,
+              onPick: () => _pickImage(true),
+              onDelete: () => setState(() {
+                _localCover = null;
+                _existingCoverUrl = null;
+              }),
+              hasImage: _localCover != null || _existingCoverUrl != null,
+            ),
             child: Container(
               height: 120,
               width: double.infinity,
@@ -472,14 +395,14 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
                                   as ImageProvider,
                         fit: BoxFit.cover,
                       )
-                    : (widget.initialCoverUrl != null
+                    : (_existingCoverUrl != null
                           ? DecorationImage(
-                              image: NetworkImage(widget.initialCoverUrl!),
+                              image: NetworkImage(_existingCoverUrl!),
                               fit: BoxFit.cover,
                             )
                           : null),
               ),
-              child: (_localCover == null && widget.initialCoverUrl == null)
+              child: (_localCover == null && _existingCoverUrl == null)
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -518,11 +441,10 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
                                 ? NetworkImage(_localLogo!.path)
                                 : FileImage(File(_localLogo!.path))
                                       as ImageProvider)
-                          : (widget.initialLogoUrl != null
-                                ? NetworkImage(widget.initialLogoUrl!)
+                          : (_existingLogoUrl != null
+                                ? NetworkImage(_existingLogoUrl!)
                                 : null),
-                      child:
-                          (_localLogo == null && widget.initialLogoUrl == null)
+                      child: (_localLogo == null && _existingLogoUrl == null)
                           ? (_selectedEmoji != null
                                 ? Text(
                                     _selectedEmoji!,
@@ -558,25 +480,11 @@ class _GroupEditSheetState extends State<_GroupEditSheet> {
                 ),
               ),
               const SizedBox(width: 16),
+              // 💡 CustomTextField 한 줄 컷!
               Expanded(
-                child: TextField(
+                child: CustomTextField(
                   controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: '모임 이름',
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                        color: Color(0xFFFF8A80),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
+                  hint: '모임 이름',
                 ),
               ),
             ],

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../constants/app_constants.dart'; // 🌟 상수 임포트
 import '../../repositories/group_repository.dart';
 import '../../widgets/feed_card.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
-
   @override
   State<HomeFeedScreen> createState() => _HomeFeedScreenState();
 }
@@ -38,7 +38,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // 배경은 깔끔하게
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text(
           '모락모락 피드 ☁️',
@@ -50,11 +50,13 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadFeeds,
-        color: const Color(0xFFFF8A80),
+        color: AppConstants.primaryColor, // 🌟 하드코딩 색상 교체!
         child: _isLoading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
-              )
+                child: CircularProgressIndicator(
+                  color: AppConstants.primaryColor,
+                ),
+              ) // 🌟 교체!
             : _feeds.isEmpty
             ? Center(
                 child: Column(
@@ -80,7 +82,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   return FeedCard(
                     feed: _feeds[index],
                     onLike: () {
-                      // 좋아요 로직은 추후 고도화 시 구현!
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('좋아요 기능은 준비 중입니다! 💖')),
                       );

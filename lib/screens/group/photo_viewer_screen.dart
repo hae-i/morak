@@ -25,8 +25,6 @@ class PhotoViewerScreen extends StatefulWidget {
 class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
   late PageController _pageController;
   late int _currentIndex;
-
-  // 🌟 상·하단 바 숨김/보임 토글 상태 변수!
   bool _showBars = true;
 
   @override
@@ -43,18 +41,22 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
   }
 
   void _toggleBars() {
-    setState(() {
-      _showBars = !_showBars;
-    });
+    setState(() => _showBars = !_showBars);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, // 💡 애니메이션 겹침 방지를 위해 투명 처리
+        iconTheme: const IconThemeData(color: Colors.transparent),
+        elevation: 0,
+        toolbarHeight: 0, // 상단바를 완전히 숨기고 AnimatedPositioned로 대체!
+      ),
       body: Stack(
         children: [
-          // 🌟 1. 사진 영역 (터치하면 상·하단 바 토글!)
           GestureDetector(
             onTap: _toggleBars,
             behavior: HitTestBehavior.opaque,
@@ -77,11 +79,10 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
             ),
           ),
 
-          // 🌟 2. 상단 반투명 바 (부드러운 페이드 인/아웃 애니메이션)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            top: _showBars ? 0 : -100, // 숨길 땐 화면 위로 슝!
+            top: _showBars ? 0 : -100,
             left: 0,
             right: 0,
             child: Container(
@@ -91,7 +92,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                 left: 12,
                 right: 12,
               ),
-              color: Colors.black.withOpacity(0.55), // 반투명 블랙
+              color: Colors.black.withOpacity(0.55),
               child: Row(
                 children: [
                   IconButton(
@@ -102,7 +103,6 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Spacer(),
-                  // 중앙 인덱스 카운터
                   Text(
                     '${_currentIndex + 1} / ${widget.imageUrls.length}',
                     style: const TextStyle(
@@ -113,18 +113,16 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // 균형을 맞추기 위한 빈 여백 (점 세 개 메뉴는 삭제!)
                   const SizedBox(width: 48),
                 ],
               ),
             ),
           ),
 
-          // 🌟 3. 하단 반투명 바 (상단보다 살짝 얇고 세련되게!)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            bottom: _showBars ? 0 : -120, // 숨길 땐 화면 아래로 슝!
+            bottom: _showBars ? 0 : -120,
             left: 0,
             right: 0,
             child: Container(
@@ -140,7 +138,6 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // 해당 만남 기록 보러가기 (만남 데이터가 있을 때만 활성화)
                   if (widget.meetup != null)
                     TextButton.icon(
                       onPressed: () {
@@ -182,7 +179,6 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                   else
                     const SizedBox.shrink(),
 
-                  // 🌟 핵심: 하단 우측 깔끔한 저장 버튼
                   TextButton.icon(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
