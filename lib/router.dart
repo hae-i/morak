@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'screens/splash_screen.dart';
 import 'screens/main_skeleton.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/profile/profile_setup_screen.dart';
+import 'widgets/group/group_join_sheet.dart';
 
 // 🌟 앱의 전체 길안내를 담당하는 GoRouter
 final router = GoRouter(
@@ -27,14 +29,7 @@ final router = GoRouter(
 
   routes: [
     // 🚪 대문 (자동 라우팅 대기소)
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
-        ),
-      ),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
     // 🔑 로그인 화면
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     // 🏠 홈 화면 (메인 뼈대)
@@ -52,9 +47,14 @@ final router = GoRouter(
         final groupId = state.uri.queryParameters['groupId'] ?? '';
         final groupName = state.uri.queryParameters['groupName'] ?? '모임';
 
-        // 일단 홈 화면을 띄운 뒤에, 바텀 시트를 띄워주는 역할을 홈에서 하도록 넘깁니다
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          // TODO: 여기에 아까 만들었던 _showJoinProfileSheet 를 호출하는 로직 연결
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) =>
+                GroupJoinSheet(groupId: groupId, groupName: groupName),
+          );
         });
 
         return const MainSkeleton();

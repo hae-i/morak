@@ -9,14 +9,18 @@ class UserRepository {
   // 🌟 내 진짜 계정(글로벌 유저) 정보 가져오기
   // 용도: 마이페이지, 프로필 수정 화면 진입 시 내 정보 띄워줄 때 사용
   Future<UserModel?> fetchMyGlobalProfile() async {
-    final user = _client.auth.currentUser;
-    if (user == null) return null;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
 
+    // 🌟 .single() 대신 .maybeSingle()
+    // 데이터가 없으면 에러(PGRST116)를 내지 않고 null을 반환
     final data = await _client
         .from('users')
         .select()
-        .eq('id', user.id)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (data == null) return null;
     return UserModel.fromJson(data);
   }
 
