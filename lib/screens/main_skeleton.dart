@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../constants/app_constants.dart'; // 🌟 상수 임포트
+import '../constants/app_constants.dart';
 import 'feed/home_feed_screen.dart';
 import 'group/my_group_screen.dart';
 import 'profile/my_page_screen.dart';

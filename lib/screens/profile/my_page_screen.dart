@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../utils/ui_utils.dart';
 import '../../models/user_model.dart';
+import '../../locator.dart';
 import '../../repositories/user_repository.dart';
 import 'profile_edit_screen.dart';
 
@@ -13,7 +14,7 @@ class MyPageScreen extends StatefulWidget {
 
 class _MyPageScreenState extends State<MyPageScreen> {
   UserModel? _myProfile;
-  final _userRepo = UserRepository();
+  final _userRepo = locator<UserRepository>();
 
   @override
   void initState() {

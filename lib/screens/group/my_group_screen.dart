@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../widgets/group/group_card.dart';
 import '../group/group_create_screen.dart';
@@ -15,7 +16,7 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
   bool _isLoading = true;
   List<dynamic> _myGroups = [];
 
-  final _groupRepo = GroupRepository();
+  final _groupRepo = locator<GroupRepository>();
 
   @override
   void initState() {

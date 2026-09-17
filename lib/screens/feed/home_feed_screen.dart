@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../locator.dart';
 import '../../constants/app_constants.dart';
 import '../../repositories/meetup_repository.dart';
 import '../../models/meetup_model.dart';
@@ -12,7 +13,7 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  final _meetupRepo = MeetupRepository();
+  final _meetupRepo = locator<MeetupRepository>();
   List<MeetupModel> _feeds = [];
   bool _isLoading = true;
 

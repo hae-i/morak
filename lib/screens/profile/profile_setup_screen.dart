@@ -5,6 +5,7 @@ import '../../constants/app_constants.dart';
 import '../main_skeleton.dart';
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../locator.dart';
 import '../../repositories/user_repository.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   final ImagePicker _picker = ImagePicker();
   XFile? _profileImage;
-  final _userRepo = UserRepository();
+  final _userRepo = locator<UserRepository>();
 
   @override
   void dispose() {

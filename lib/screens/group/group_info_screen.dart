@@ -2,24 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../utils/color_utils.dart';
 import '../../utils/ui_utils.dart';
+import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../models/group_model.dart';
 import '../../widgets/group/group_edit_sheets.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   final GroupModel groupData;
-  final GroupRepository groupRepo;
 
-  const GroupInfoScreen({
-    super.key,
-    required this.groupData,
-    required this.groupRepo,
-  });
+  const GroupInfoScreen({super.key, required this.groupData});
+
   @override
   State<GroupInfoScreen> createState() => _GroupInfoScreenState();
 }
 
 class _GroupInfoScreenState extends State<GroupInfoScreen> {
+  final _groupRepo = locator<GroupRepository>();
+
   Future<void> _deleteGroup() async {
     final confirm = await UiUtils.showBeautifulDialog(
       context: context,
@@ -30,7 +29,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       icon: Icons.delete_forever_rounded,
     );
     if (confirm == true) {
-      await widget.groupRepo.deleteGroup(widget.groupData.id);
+      await _groupRepo.deleteGroup(widget.groupData.id);
       if (mounted) Navigator.pop(context, 'deleted');
     }
   }
@@ -47,7 +46,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         initialColor: widget.groupData.themeColor,
         initialCoverUrl: widget.groupData.coverImageUrl,
         initialLogoUrl: widget.groupData.logoImageUrl,
-        repository: widget.groupRepo,
+        repository: _groupRepo,
         onUpdated: () => Navigator.pop(context, 'updated'),
       ),
     );

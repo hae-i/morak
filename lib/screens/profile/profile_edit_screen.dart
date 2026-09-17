@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../locator.dart';
 import '../../repositories/user_repository.dart';
 
 class ProfileEditScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final ImagePicker _picker = ImagePicker();
   XFile? _localProfileImage;
   String? _existingProfileImageUrl;
-  final _userRepo = UserRepository();
+  final _userRepo = locator<UserRepository>();
 
   @override
   void initState() {

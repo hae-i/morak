@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../repositories/meetup_repository.dart';
 import '../../models/meetup_model.dart';
@@ -39,8 +40,8 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
 
   final ImagePicker _picker = ImagePicker();
   List<dynamic> _photos = [];
-  final _groupRepo = GroupRepository();
-  final _meetupRepo = MeetupRepository();
+  final _groupRepo = locator<GroupRepository>();
+  final _meetupRepo = locator<MeetupRepository>();
 
   @override
   void initState() {

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/color_utils.dart';
+import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../models/group_model.dart';
 import '../../models/meetup_model.dart';
@@ -41,7 +42,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   List<MemberModel> _rankedMembers = [];
   List<String> _allAlbumPhotos = [];
 
-  final _groupRepo = GroupRepository();
+  final _groupRepo = locator<GroupRepository>();
 
   @override
   void initState() {
@@ -412,10 +413,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => GroupInfoScreen(
-                        groupData: _group!,
-                        groupRepo: _groupRepo,
-                      ),
+                      builder: (context) => GroupInfoScreen(groupData: _group!),
                     ),
                   );
                   if (result == 'deleted') {

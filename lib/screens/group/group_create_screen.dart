@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../repositories/user_repository.dart';
 import '../../widgets/profile/profile_setup_sheet.dart';
@@ -23,8 +24,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   int _currentPage = 0;
   final _nameController = TextEditingController();
   final _myNicknameController = TextEditingController();
-  final _groupRepo = GroupRepository();
-  final _userRepo = UserRepository();
+  final _groupRepo = locator<GroupRepository>();
+  final _userRepo = locator<UserRepository>();
 
   bool _isLoading = true;
   bool _isSaving = false;
