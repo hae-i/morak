@@ -309,6 +309,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.2.1"
+  go_router:
+    dependency: "direct main"
+    description:
+      name: go_router
+      sha256: "008ab21d89d0de8ccd79586838f7533f126c2d894f50bf25f2947888d3c225b5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "18.0.1"
   google_identity_services_web:
     dependency: transitive
     description:
