@@ -1,44 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../locator.dart';
 import '../../constants/app_constants.dart';
-import '../../repositories/meetup_repository.dart';
-import '../../models/meetup_model.dart';
+import '../../providers/feed_provider.dart';
 import '../../widgets/feed/feed_card.dart';
 
-class HomeFeedScreen extends StatefulWidget {
+// 🌟 1. StatefulWidget 대신 ConsumerWidget 을 상속
+class HomeFeedScreen extends ConsumerWidget {
   const HomeFeedScreen({super.key});
+
+  // 🌟 2. build 함수에 WidgetRef ref 가 추가 (이 ref 로 데이터를 구독함)
   @override
-  State<HomeFeedScreen> createState() => _HomeFeedScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 🌟 3. setState 다 날리고, 한 줄로 데이터 구독
+    // ref.watch 는 데이터가 바뀌면 화면을 알아서 다시 그려줍니다.
+    final feedState = ref.watch(feedProvider);
 
-class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  final _meetupRepo = locator<MeetupRepository>();
-  List<MeetupModel> _feeds = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFeeds();
-  }
-
-  Future<void> _loadFeeds() async {
-    setState(() => _isLoading = true);
-    try {
-      final data = await _meetupRepo.fetchHomeFeeds();
-      if (mounted) setState(() => _feeds = data);
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('피드를 불러오지 못했습니다: $e')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -51,16 +28,21 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         surfaceTintColor: Colors.transparent,
       ),
       body: RefreshIndicator(
-        onRefresh: _loadFeeds,
+        // 🌟 4. 새로고침 로직도 ref.refresh 로 단 한 줄
+        onRefresh: () async => ref.refresh(feedProvider.future),
         color: AppConstants.primaryColor,
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: AppConstants.primaryColor,
-                ),
-              )
-            : _feeds.isEmpty
-            ? Center(
+
+        // 🌟 5. feedState의 3가지 상태(로딩중, 에러남, 데이터옴)에 따라 화면을 분기처리
+        child: feedState.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppConstants.primaryColor),
+          ),
+          error: (error, stack) =>
+              Center(child: Text('피드를 불러오지 못했습니다: $error')),
+          data: (feeds) {
+            // 데이터가 도착했을 때의 화면 (기존 로직과 동일)
+            if (feeds.isEmpty) {
+              return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -77,20 +59,23 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                     ),
                   ],
                 ),
-              )
-            : ListView.builder(
-                itemCount: _feeds.length,
-                itemBuilder: (context, index) {
-                  return FeedCard(
-                    feed: _feeds[index],
-                    onLike: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('좋아요 기능은 준비 중입니다! 💖')),
-                      );
-                    },
-                  );
-                },
-              ),
+              );
+            }
+            return ListView.builder(
+              itemCount: feeds.length,
+              itemBuilder: (context, index) {
+                return FeedCard(
+                  feed: feeds[index],
+                  onLike: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('좋아요 기능은 준비 중입니다! 💖')),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

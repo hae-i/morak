@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'locator.dart';
 import 'constants/app_constants.dart';
 import 'repositories/user_repository.dart';
 import 'repositories/group_repository.dart';
 import 'widgets/common/common_widgets.dart';
-
 import 'screens/main_skeleton.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/profile/profile_setup_screen.dart';
@@ -20,7 +21,10 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
-  runApp(const MorakApp());
+
+  setupLocator();
+
+  runApp(const ProviderScope(child: MorakApp()));
 }
 
 class MorakApp extends StatelessWidget {
@@ -31,9 +35,7 @@ class MorakApp extends StatelessWidget {
     return MaterialApp(
       title: 'Morak',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppConstants.primaryColor,
-        ), // 🌟 하드코딩 제거
+        colorScheme: ColorScheme.fromSeed(seedColor: AppConstants.primaryColor),
         useMaterial3: true,
       ),
       home: const AuthGate(),
