@@ -40,13 +40,32 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
     super.dispose();
   }
 
-  // 🌟 프로필 + 모임 이름 한방에 가져오기
   Future<void> _loadInitialData() async {
     try {
-      // 1. 프로필 정보 가져오기
+      final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+
+      // 🌟 내가 이미 이 모임의 멤버인지 DB에서 찾아보기
+      final memberCheck = await Supabase.instance.client
+          .from('group_members')
+          .select()
+          .eq('group_id', widget.groupId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      // 이미 가입된 유저라면?!
+      if (memberCheck != null) {
+        if (mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('😅 이미 참여 중인 모임입니다!')));
+        }
+        return;
+      }
+
+      // 🌟 프로필 + 모임 이름 한방에 가져오기
       final profile = await _userRepo.fetchMyGlobalProfile();
 
-      // 2. 모임 이름 가져오기 (테이블명이 다를 수 있으니 'groups'를 실제 DB 테이블명에 맞게 변경해주세요!)
       String tempGroupName = '모임';
       try {
         final groupData = await Supabase.instance.client
@@ -61,7 +80,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
 
       if (mounted) {
         setState(() {
-          _fetchedGroupName = tempGroupName; // 가져온 이름 적용!
+          _fetchedGroupName = tempGroupName;
           if (profile != null) {
             _nicknameController.text = profile.displayName;
             _globalProfileImageUrl = profile.profileImageUrl;
@@ -91,7 +110,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🎉 $_fetchedGroupName 모임에 가입되었습니다!'), // 🌟 여기도 변경!
+            content: Text('🎉 $_fetchedGroupName 모임에 가입되었습니다!'),
             backgroundColor: AppConstants.primaryColor,
           ),
         );
@@ -144,7 +163,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  '💌 $_fetchedGroupName', // 🌟 여기도 변경!
+                  '💌 $_fetchedGroupName',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[500],

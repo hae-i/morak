@@ -20,12 +20,7 @@ import '../../widgets/group/group_edit_sheets.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
-  final String groupName;
-  const GroupDetailScreen({
-    super.key,
-    required this.groupId,
-    required this.groupName,
-  });
+  const GroupDetailScreen({super.key, required this.groupId});
   @override
   State<GroupDetailScreen> createState() => _GroupDetailScreenState();
 }
@@ -36,7 +31,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   late TabController _tabController;
 
   bool _isLoading = true;
-
   GroupModel? _group;
   List<MeetupModel> _meetups = [];
   List<MemberModel> _rankedMembers = [];
@@ -58,8 +52,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     super.dispose();
   }
 
-  Future<void> _loadAllData() async {
-    setState(() => _isLoading = true);
+  // 🌟 isSilentRefresh 가 true면 로딩 화면을 안 띄움!
+  Future<void> _loadAllData({bool isSilentRefresh = false}) async {
+    if (!isSilentRefresh) {
+      setState(() => _isLoading = true); // 처음 들어올 때만 로딩 켜기
+    }
+
     try {
       final data = await _groupRepo.fetchGroupDetailWithRanking(widget.groupId);
       if (mounted) {
@@ -68,19 +66,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           _meetups = data['meetups'];
           _rankedMembers = data['rankedMembers'];
           _allAlbumPhotos.clear();
-
           for (var meetup in _meetups) {
             _allAlbumPhotos.addAll(meetup.photos);
           }
-          _isLoading = false;
+          _isLoading = false; // 끝나면 끄기
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('에러: $e')));
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -107,43 +100,38 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(
-            bottom: 24.0,
-            top: 12,
-            left: 24,
-            right: 24,
-          ),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40,
+                width: 36,
                 height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               if (isMe)
                 Align(
                   alignment: Alignment.centerRight,
                   child: IconButton(
-                    icon: Icon(Icons.settings_rounded, color: Colors.grey[600]),
+                    icon: Icon(Icons.settings_rounded, color: Colors.grey[500]),
                     onPressed: () => _openMyProfileEditSheet(member),
                     tooltip: '프로필 수정',
                   ),
                 )
               else
-                const SizedBox(height: 48),
+                const SizedBox(height: 24),
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 36,
+                    radius: 32,
                     backgroundColor: Colors.grey[100],
                     backgroundImage: member.profileImageUrl != null
                         ? NetworkImage(member.profileImageUrl!)
@@ -151,12 +139,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     child: member.profileImageUrl == null
                         ? Icon(
                             Icons.person_rounded,
-                            size: 40,
+                            size: 36,
                             color: Colors.grey[400],
                           )
                         : null,
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,14 +156,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                 padding: EdgeInsets.only(right: 6),
                                 child: Text(
                                   '👑',
-                                  style: TextStyle(fontSize: 18),
+                                  style: TextStyle(fontSize: 16),
                                 ),
                               ),
                             Flexible(
                               child: Text(
                                 member.displayName + (isMe ? ' (나)' : ''),
-                                style: TextStyle(
-                                  fontSize: 22,
+                                style: const TextStyle(
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
                                 ),
@@ -190,9 +178,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               ? '🎂 생일: ${member.birthday!.replaceAll('-', '. ')}'
                               : (isHost ? '모임 방장' : '일반 멤버'),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: Colors.grey[500],
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -200,13 +188,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              // 🌟 미니멀하고 플랫한 통계 박스
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 20,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -216,40 +207,40 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         const Text(
                           '참여한 만남',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: Colors.grey,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
                           '${member.attendedCount}회',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
                       ],
                     ),
-                    Container(width: 1, height: 40, color: Colors.black12),
+                    Container(width: 1, height: 24, color: Colors.grey[200]),
                     Column(
                       children: [
                         const Text(
                           '참석률',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: Colors.grey,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
                           '${member.attendanceRate.toInt()}%',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFFFF8A80),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo,
                           ),
                         ),
                       ],
@@ -257,7 +248,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -268,7 +258,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   String _formatDate(String date) {
     try {
       final dt = DateTime.parse(date);
-      return '${dt.year}. ${dt.month.toString().padLeft(2, '0')}. ${dt.day.toString().padLeft(2, '0')}';
+      return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
     } catch (_) {
       return date;
     }
@@ -278,9 +268,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   Widget build(BuildContext context) {
     if (_isLoading || _group == null) {
       return Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Colors.white,
         body: const Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+          child: CircularProgressIndicator(
+            color: Colors.black87,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
@@ -307,26 +300,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       },
       child: Scaffold(
         key: _scaffoldKey,
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Colors.white, // 🌟 배경을 깔끔한 순백색으로 통일하여 답답함 해소!
         endDrawer: isWideScreen ? null : memberDrawerWidget,
 
         appBar: AppBar(
-          backgroundColor: Colors.grey[50],
-          surfaceTintColor: Colors.transparent,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: Colors.grey[800]),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: Colors.black87,
+            ),
             onPressed: () => Navigator.pop(context, true),
           ),
           title: Text(
             _group!.name,
-            style: TextStyle(
-              color: Colors.grey[800],
+            style: const TextStyle(
+              color: Colors.black87,
               fontWeight: FontWeight.bold,
+              fontSize: 17,
             ),
           ),
           actions: [
             IconButton(
-              icon: Icon(Icons.share_rounded, color: Colors.grey[800]),
+              icon: const Icon(
+                Icons.share_outlined,
+                size: 20,
+                color: Colors.black87,
+              ),
               onPressed: () {
                 InviteHelper.copyInviteLink(
                   context: context,
@@ -337,7 +340,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           ],
         ),
 
-        // 🌟 가로로 화면 쪼개기
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -345,21 +347,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               child: Column(
                 children: [
                   _buildHeaderInfo(activeColor, isDefaultColor),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+
+                  // 🌟 탭바를 아주 심플하게 다이어트
                   TabBar(
                     controller: _tabController,
-                    indicatorColor: isDefaultColor
-                        ? Colors.grey[800]
-                        : activeColor,
-                    labelColor: Colors.grey[800],
+                    indicatorColor: Colors.black87,
+                    indicatorWeight: 2,
+                    labelColor: Colors.black87,
                     unselectedLabelColor: Colors.grey[400],
                     labelStyle: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                      fontSize: 14,
                     ),
                     tabs: const [
                       Tab(text: '만남 기록'),
-                      Tab(text: '추억 앨범 📸'),
+                      Tab(text: '사진첩'),
                     ],
                   ),
                   Expanded(
@@ -376,8 +379,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             ),
 
             if (isWideScreen) ...[
-              VerticalDivider(width: 1, thickness: 1, color: Colors.grey[200]),
-              SizedBox(width: 320, child: memberDrawerWidget),
+              const VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: Color(0xFFEEEEEE),
+              ),
+              SizedBox(width: 300, child: memberDrawerWidget),
             ],
           ],
         ),
@@ -385,198 +392,169 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
+  // 🌟 상단 대형 배너: 뚱뚱한 박스 느낌을 없애고 세련된 카드형으로 개선
   Widget _buildHeaderInfo(Color activeColor, bool isDefaultColor) {
     final bool hasCover = _group!.coverImageUrl != null;
     final bool hasLogo = _group!.logoImageUrl != null;
     final isWideScreen = MediaQuery.of(context).size.width > 600;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       child: Container(
-        height: 140,
+        height: 120,
         decoration: BoxDecoration(
           color: hasCover
               ? Colors.black
               : (isDefaultColor
-                    ? Colors.grey[200]
-                    : activeColor.withOpacity(0.15)),
-          borderRadius: BorderRadius.circular(24),
+                    ? Colors.grey[150]
+                    : activeColor.withOpacity(0.12)),
+          borderRadius: BorderRadius.circular(20),
           image: hasCover
               ? DecorationImage(
                   image: NetworkImage(_group!.coverImageUrl!),
                   fit: BoxFit.cover,
                 )
               : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Container(
-          height: 140,
           decoration: BoxDecoration(
-            color: hasCover
-                ? Colors.black
-                : (isDefaultColor
-                      ? Colors.grey[200]
-                      : activeColor.withOpacity(0.15)),
-            borderRadius: BorderRadius.circular(24),
-            image: hasCover
-                ? DecorationImage(
-                    image: NetworkImage(_group!.coverImageUrl!),
-                    fit: BoxFit.cover,
+            borderRadius: BorderRadius.circular(20),
+            gradient: hasCover
+                ? const LinearGradient(
+                    colors: [Colors.black45, Colors.black45],
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
                   )
                 : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: hasCover
-                  ? const LinearGradient(
-                      colors: [Colors.black87, Colors.transparent],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
-                    )
-                  : null,
-            ),
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            GroupInfoScreen(groupData: _group!),
-                      ),
-                    );
-                    if (result == 'deleted') {
-                      if (mounted) Navigator.pop(context, true);
-                    } else if (result == 'updated') {
-                      _loadAllData();
-                    }
-                  },
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: hasCover ? Colors.white24 : Colors.white54,
-                      shape: BoxShape.circle,
-                      image: hasLogo
-                          ? DecorationImage(
-                              image: NetworkImage(_group!.logoImageUrl!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GroupInfoScreen(groupData: _group!),
                     ),
-                    child: hasLogo
-                        ? null
-                        : Center(
-                            child:
-                                (_group!.themeEmoji != null &&
-                                    _group!.themeEmoji!.isNotEmpty)
-                                ? Text(
-                                    _group!.themeEmoji!,
-                                    style: const TextStyle(fontSize: 32),
-                                  )
-                                : Icon(
-                                    Icons.groups_rounded,
-                                    color: hasCover
-                                        ? Colors.white
-                                        : (isDefaultColor
-                                              ? Colors.grey[400]
-                                              : activeColor),
-                                    size: 32,
-                                  ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _tabController.animateTo(0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${_meetups.length}',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: hasCover ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '만남 기록',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: hasCover
-                                    ? Colors.white70
-                                    : Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: hasCover ? Colors.white24 : Colors.black12,
-                      ),
-
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          if (!isWideScreen)
-                            _scaffoldKey.currentState?.openEndDrawer();
-                        },
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${_rankedMembers.length}',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: hasCover ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '모임 멤버',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: hasCover
-                                    ? Colors.white70
-                                    : Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
+                  );
+                  if (result == 'deleted') {
+                    if (mounted) Navigator.pop(context, true);
+                  } else if (result == 'updated') {
+                    _loadAllData();
+                  }
+                },
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    image: hasLogo
+                        ? DecorationImage(
+                            image: NetworkImage(_group!.logoImageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
+                  child: hasLogo
+                      ? null
+                      : Center(
+                          child:
+                              (_group!.themeEmoji != null &&
+                                  _group!.themeEmoji!.isNotEmpty)
+                              ? Text(
+                                  _group!.themeEmoji!,
+                                  style: const TextStyle(fontSize: 26),
+                                )
+                              : Icon(
+                                  Icons.groups_rounded,
+                                  color: activeColor,
+                                  size: 26,
+                                ),
+                        ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _tabController.animateTo(0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${_meetups.length}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: hasCover ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '만남 기록',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasCover
+                                  ? Colors.white70
+                                  : Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 24,
+                      color: hasCover ? Colors.white24 : Colors.grey[300],
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (!isWideScreen)
+                          _scaffoldKey.currentState?.openEndDrawer();
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${_rankedMembers.length}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: hasCover ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '모임 멤버',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasCover
+                                  ? Colors.white70
+                                  : Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -585,8 +563,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
   Widget _buildMeetupTab(Color activeColor, bool isDefaultColor) {
     return RefreshIndicator(
-      color: isDefaultColor ? Colors.grey[800] : activeColor,
-      onRefresh: _loadAllData,
+      color: Colors.black87,
+      onRefresh: () => _loadAllData(isSilentRefresh: true),
       child: Column(
         children: [
           Expanded(
@@ -597,19 +575,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       children: [
                         Icon(
                           Icons.edit_calendar_rounded,
-                          size: 64,
+                          size: 48,
                           color: Colors.grey[300],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
+                        const SizedBox(height: 12),
+                        const Text(
                           '아직 남겨진 기록이 없어요.',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
+                        const SizedBox(height: 16),
+                        TextButton(
                           onPressed: () async {
                             final result = await Navigator.push(
                               context,
@@ -620,16 +595,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             );
                             if (result == true) _loadAllData();
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: activeColor,
-                            foregroundColor: ColorUtils.getTextColor(
-                              activeColor,
-                            ),
-                            elevation: 0,
-                          ),
-                          icon: const Icon(Icons.add),
-                          label: const Text(
-                            '첫 만남 기록하기',
+                          child: const Text(
+                            '첫 만남 기록하기 +',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -639,57 +606,43 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
-                      vertical: 16,
+                      vertical: 12,
                     ),
                     itemCount: _meetups.length + 1,
                     itemBuilder: (context, index) {
-                      if (index == 0)
-                        return InkWell(
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    MeetupCreateScreen(groupId: _group!.id),
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      MeetupCreateScreen(groupId: _group!.id),
+                                ),
+                              );
+                              if (result == true) _loadAllData();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.black87,
+                              side: const BorderSide(color: Color(0xFFE0E0E0)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            );
-                            if (result == true) _loadAllData();
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            decoration: BoxDecoration(
-                              color: isDefaultColor
-                                  ? Colors.grey[200]
-                                  : activeColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_circle_rounded,
-                                  color: isDefaultColor
-                                      ? Colors.grey[600]
-                                      : activeColor,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '새로운 만남 기록하기',
-                                  style: TextStyle(
-                                    color: isDefaultColor
-                                        ? Colors.grey[800]
-                                        : activeColor,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                            child: const Text(
+                              '+ 새로운 만남 기록하기',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         );
+                      }
+
                       final meetup = _meetups[index - 1];
                       final title = meetup.title ?? '제목 없는 만남';
                       final subText = [
@@ -699,6 +652,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       final attendeeCount = meetup.attendanceMemberIds.length;
                       final hasPhoto = meetup.photos.isNotEmpty;
                       final bgImageUrl = hasPhoto ? meetup.photos.first : null;
+
+                      // 🌟 카드를 슬림하고 감성적으로 변경
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -713,138 +668,98 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           );
                         },
                         child: Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          height: 130,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          height: 105, // 높이 줄임 (뚱뚱함 해소)
                           decoration: BoxDecoration(
                             color: hasPhoto ? Colors.black : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFF0F0F0),
+                            ), // 은은한 테두리
                             image: hasPhoto
                                 ? DecorationImage(
                                     image: NetworkImage(bgImageUrl!),
                                     fit: BoxFit.cover,
+                                    colorFilter: ColorFilter.mode(
+                                      Colors.black.withOpacity(0.3),
+                                      BlendMode.darken,
+                                    ),
                                   )
                                 : null,
                           ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: hasPhoto
-                                  ? const LinearGradient(
-                                      colors: [Colors.black87, Colors.black26],
-                                      begin: Alignment.bottomLeft,
-                                      end: Alignment.topRight,
-                                    )
-                                  : null,
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                if (!hasPhoto)
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: isDefaultColor
-                                          ? Colors.grey[100]
-                                          : activeColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.restaurant_rounded,
-                                      color: isDefaultColor
-                                          ? Colors.grey[400]
-                                          : activeColor,
-                                    ),
-                                  ),
-                                if (!hasPhoto) const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        _formatDate(meetup.date),
-                                        style: TextStyle(
-                                          color: hasPhoto
-                                              ? Colors.white70
-                                              : Colors.grey[400],
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _formatDate(meetup.date),
+                                      style: TextStyle(
+                                        color: hasPhoto
+                                            ? Colors.white70
+                                            : Colors.grey[400],
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        title,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: hasPhoto
-                                              ? Colors.white
-                                              : Colors.grey[800],
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      title,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: hasPhoto
+                                            ? Colors.white
+                                            : Colors.black87,
                                       ),
-                                      if (subText.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 2,
-                                          ),
-                                          child: Text(
-                                            subText,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: hasPhoto
-                                                  ? Colors.white70
-                                                  : Colors.grey[500],
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      const SizedBox(height: 8),
-                                      if (attendeeCount > 0)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (subText.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          subText,
+                                          style: TextStyle(
+                                            fontSize: 12,
                                             color: hasPhoto
-                                                ? Colors.white24
-                                                : (isDefaultColor
-                                                      ? Colors.grey[100]
-                                                      : activeColor.withOpacity(
-                                                          0.1,
-                                                        )),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
+                                                ? Colors.white70
+                                                : Colors.grey[500],
                                           ),
-                                          child: Text(
-                                            '👥 참석 $attendeeCount명',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: hasPhoto
-                                                  ? Colors.white
-                                                  : Colors.grey[800],
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                    ],
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (attendeeCount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: hasPhoto
+                                        ? Colors.white24
+                                        : Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '👥 $attendeeCount',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: hasPhoto
+                                          ? Colors.white
+                                          : Colors.grey[700],
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
                       );
@@ -866,7 +781,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     final imageUrls = albumData.map((e) => e['url'] as String).toList();
 
     return RefreshIndicator(
-      color: isDefaultColor ? Colors.grey[800] : activeColor,
+      color: Colors.black87,
       onRefresh: _loadAllData,
       child: albumData.isEmpty
           ? Center(
@@ -875,19 +790,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 children: [
                   Icon(
                     Icons.photo_library_outlined,
-                    size: 64,
+                    size: 48,
                     color: Colors.grey[300],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 12),
+                  const Text(
                     '아직 등록된 사진이 없어요.',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
               ),
             )
           : MasonryGridView.count(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               crossAxisCount: 2,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
@@ -907,17 +822,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      10,
+                    ), // 모서리 라운드 살짝 줄여서 세련되게
                     child: CachedNetworkImage(
                       imageUrl: imageUrls[index],
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFF8A80),
+                      placeholder: (context, url) => Container(
+                        height: 120,
+                        color: Colors.grey[100],
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
-                      ), // 로딩 중 띄워줄 위젯
+                      ),
                       errorWidget: (context, url, error) =>
-                          const Icon(Icons.error), // 에러 시 띄워줄 위젯
+                          const Icon(Icons.error),
                     ),
                   ),
                 );

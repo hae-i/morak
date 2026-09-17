@@ -51,7 +51,11 @@ class _MemberDrawerState extends State<MemberDrawer> {
     );
 
     if (mounted) {
-      Navigator.pop(context);
+      final isWideScreen = MediaQuery.of(context).size.width > 600;
+
+      if (!isWideScreen) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -122,6 +126,9 @@ class _MemberDrawerState extends State<MemberDrawer> {
   @override
   Widget build(BuildContext context) {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final iAmHost = widget.members.any(
+      (m) => m.userId == currentUserId && m.role == 'host',
+    );
     final btnTextColor = widget.isDefaultColor
         ? Colors.white
         : ColorUtils.getTextColor(widget.activeColor);
@@ -299,8 +306,8 @@ class _MemberDrawerState extends State<MemberDrawer> {
                             member.displayName + (isMe ? ' (나)' : ''),
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          trailing: isMe
-                              ? const SizedBox.shrink()
+                          trailing: (isMe || !iAmHost)
+                              ? const SizedBox.shrink() // 내가 방장이 아니면 권한 메뉴 아예 증발시킴! 🚫
                               : PopupMenuButton<String>(
                                   icon: const Icon(
                                     Icons.more_vert_rounded,
@@ -313,6 +320,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                                   itemBuilder: (context) => [
                                     PopupMenuItem(
                                       value: 'role',
+                                      // 이미 상대가 방장이면 강등, 아니면 승급 텍스트
                                       child: Text(
                                         isHost ? '일반 멤버로 강등' : '방장 권한 부여',
                                       ),

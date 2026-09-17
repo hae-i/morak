@@ -106,10 +106,8 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => GroupDetailScreen(
-                            groupId: group.id,
-                            groupName: group.name,
-                          ),
+                          builder: (context) =>
+                              GroupDetailScreen(groupId: group.id),
                         ),
                       );
                       if (result == true) _loadGroups();

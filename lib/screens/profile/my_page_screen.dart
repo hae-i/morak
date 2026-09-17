@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../utils/ui_utils.dart';
 import '../../models/user_model.dart';
@@ -36,7 +37,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
       confirmColor: Colors.redAccent,
       icon: Icons.logout_rounded,
     );
-    if (confirm == true) await _userRepo.signOut();
+
+    if (confirm == true) {
+      //  Supabase 로그아웃 (서버 세션 끊기)
+      await _userRepo.signOut();
+
+      if (mounted) {
+        context.go('/login');
+      }
+    }
   }
 
   @override
