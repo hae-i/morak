@@ -176,16 +176,22 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         : Colors.grey[200]!;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색!
       appBar: AppBar(
         title: Text(
           _currentPage == 0 ? '새 모임 만들기 ☁️' : '모임 프로필 설정',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: Colors.grey[800]),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: Colors.black87,
+          ),
           onPressed: () {
             if (_currentPage == 1) {
               _pageController.previousPage(
@@ -201,7 +207,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+              child: CircularProgressIndicator(color: Colors.black87),
             )
           : PageView(
               controller: _pageController,
@@ -219,7 +225,6 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             GestureDetector(
-                              // 💡 UiUtils로 한 줄 컷!
                               onTap: () => UiUtils.showImageActionMenu(
                                 context: context,
                                 onPick: () => _pickImage(false, true),
@@ -228,15 +233,16 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                 hasImage: _coverImage != null,
                               ),
                               child: Container(
-                                height: 160,
+                                height: 140, // 🌟 높이 다이어트
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(24),
+                                  color: Colors.grey[50], // 🌟 연한 회색 배경
+                                  borderRadius: BorderRadius.circular(
+                                    20,
+                                  ), // 🌟 둥글기 세련되게
                                   border: Border.all(
-                                    color: Colors.grey[200]!,
-                                    width: 2,
-                                  ),
+                                    color: const Color(0xFFEEEEEE),
+                                  ), // 🌟 얇은 테두리
                                   image: _coverImage != null
                                       ? DecorationImage(
                                           image: kIsWeb
@@ -254,15 +260,16 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                             MainAxisAlignment.center,
                                         children: [
                                           Icon(
-                                            Icons.add_photo_alternate_rounded,
-                                            size: 40,
-                                            color: Colors.grey[300],
+                                            Icons.add_photo_alternate_outlined,
+                                            size: 36,
+                                            color: Colors.grey[400],
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
                                             '모임 대표 배경 사진 (선택)',
                                             style: TextStyle(
-                                              color: Colors.grey[400],
+                                              color: Colors.grey[500],
+                                              fontSize: 13,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -273,12 +280,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                             ),
                             const SizedBox(height: 32),
 
-                            // 💡 EditableAvatar 레고 블록으로 한 줄 컷!
                             Center(
                               child: EditableAvatar(
-                                radius: 48,
+                                radius: 46,
                                 backgroundColor: _selectedColorIndex == null
-                                    ? Colors.white
+                                    ? Colors.grey[100]!
                                     : activeColor,
                                 localImage: _logoImage,
                                 emoji: _selectedEmoji,
@@ -291,15 +297,14 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                               child: Text(
                                 '터치해서 모임 로고/테마 변경 ✨',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 13,
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 48),
 
-                            // 💡 CustomTextField 레고 블록으로 두 줄 컷!
                             const SectionTitle('모임 이름'),
                             const SizedBox(height: 12),
                             CustomTextField(
@@ -323,11 +328,10 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 💡 EditableAvatar 레고 블록으로 한 줄 컷!
                             Center(
                               child: EditableAvatar(
-                                radius: 50,
-                                backgroundColor: Colors.grey[200]!,
+                                radius: 48,
+                                backgroundColor: Colors.grey[100]!,
                                 localImage: _localProfileImage,
                                 networkImageUrl: _globalProfileImageUrl,
                                 fallbackIcon: Icons.person_rounded,
@@ -344,9 +348,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 48),
 
-                            // 💡 CustomTextField 레고 블록으로 두 줄 컷!
                             const SectionTitle('이 모임에서 사용할 닉네임'),
                             const SizedBox(height: 12),
                             CustomTextField(
@@ -365,7 +368,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                     onChanged: (val) => setState(
                                       () => _isBirthdayPublic = val ?? true,
                                     ),
-                                    activeColor: const Color(0xFFFF8A80),
+                                    activeColor:
+                                        Colors.black87, // 🌟 포인트 컬러 블랙으로 통일
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -374,6 +381,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -388,10 +396,10 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
             ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
           child: SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 54, // 🌟 버튼 다이어트
             child: ElevatedButton(
               onPressed: () {
                 if (_currentPage == 0) {
@@ -422,18 +430,25 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF8A80),
+                backgroundColor: Colors.black87, // 🌟 버튼 색상을 블랙으로 힙하게!
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
               child: _isSaving
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : Text(
                       _currentPage == 0 ? '다음' : '모임 시작하기',
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),

@@ -40,15 +40,23 @@ class MeetupDetailScreen extends StatelessWidget {
         .toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white, // 🌟 순백색
       appBar: AppBar(
         title: const Text(
           '만남 기록',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: Colors.black87,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -62,18 +70,18 @@ class MeetupDetailScreen extends StatelessWidget {
                   Text(
                     _formatDate(meetup.date),
                     style: TextStyle(
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     title.isNotEmpty ? title : '기록 내용 없음',
-                    style: TextStyle(
-                      fontSize: 28,
+                    style: const TextStyle(
+                      fontSize: 24,
                       fontWeight: FontWeight.w900,
-                      color: Colors.grey[800],
+                      color: Colors.black87,
                     ),
                   ),
                 ],
@@ -87,12 +95,13 @@ class MeetupDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[600],
+                    fontSize: 13,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               SizedBox(
-                height: 40,
+                height: 36, // 🌟 Chip 높이 다이어트
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   scrollDirection: Axis.horizontal,
@@ -100,15 +109,25 @@ class MeetupDetailScreen extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final member = attendees[index];
-                    return Chip(
-                      label: Text(
-                        member.displayName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
                       ),
-                      backgroundColor: Colors.grey[100],
-                      side: BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white, // 🌟 깔끔한 흰색 바탕에 얇은 테두리
+                        border: Border.all(color: const Color(0xFFEEEEEE)),
+                        borderRadius: BorderRadius.circular(10), // 날렵하게!
+                      ),
+                      child: Center(
+                        child: Text(
+                          member.displayName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -117,9 +136,9 @@ class MeetupDetailScreen extends StatelessWidget {
               const SizedBox(height: 32),
             ],
             if (photos.isNotEmpty) ...[
-              const Divider(height: 1, color: Colors.black12),
+              const Divider(height: 1, color: Color(0xFFF0F0F0)),
               Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(16.0),
                 child: MasonryGridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: 8,
@@ -141,13 +160,24 @@ class MeetupDetailScreen extends StatelessWidget {
                         ),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          10,
+                        ), // 🌟 모서리 둥글기 세련되게
                         child: CachedNetworkImage(
                           imageUrl: photos[index],
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFFFF8A80),
+                          placeholder: (context, url) => Container(
+                            height: 120,
+                            color: Colors.grey[50],
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.black87,
+                                  strokeWidth: 2,
+                                ),
+                              ),
                             ),
                           ),
                           errorWidget: (context, url, error) =>
@@ -159,19 +189,19 @@ class MeetupDetailScreen extends StatelessWidget {
                 ),
               ),
             ] else ...[
-              const SizedBox(height: 40),
+              const SizedBox(height: 60),
               Center(
                 child: Column(
                   children: [
                     Icon(
                       Icons.photo_library_outlined,
-                      size: 64,
+                      size: 54,
                       color: Colors.grey[200],
                     ),
                     const SizedBox(height: 16),
                     Text(
                       '등록된 사진이 없어요.',
-                      style: TextStyle(color: Colors.grey[400]),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 14),
                     ),
                   ],
                 ),

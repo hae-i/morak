@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/color_utils.dart';
 
-/// 프로필 설정 바텀시트의 결과를 캡슐화한 불변 데이터 모델
 @immutable
 class ProfileSetupResult {
   final XFile? image;
@@ -27,7 +26,6 @@ class ProfileSetupSheet extends StatefulWidget {
     this.initialEmoji,
     this.initialColorIndex,
   });
-
   @override
   State<ProfileSetupSheet> createState() => _ProfileSetupSheetState();
 }
@@ -44,7 +42,6 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
     _selectedColorIndex = widget.initialColorIndex;
   }
 
-  /// 갤러리에서 이미지를 선택하고 결과를 안전하게 반환하는 비동기 메서드
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -53,7 +50,6 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
         maxHeight: 512,
         imageQuality: 80,
       );
-
       if (pickedFile != null) {
         if (!mounted) return;
         Navigator.pop(
@@ -66,16 +62,13 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
         );
       }
     } catch (e) {
-      debugPrint('사진 선택 중 예외 발생: $e');
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('사진을 가져오는 중 오류가 발생했습니다.')));
-      }
     }
   }
 
-  /// 완료 버튼 클릭 시 결과 객체 생성 및 pop
   void _onSubmit() {
     Navigator.pop(
       context,
@@ -97,13 +90,17 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
           children: [
             const Text(
               '프로필 꾸미기 ✨',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
               '테마 색상 / 사진',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey,
               ),
@@ -119,13 +116,16 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Colors.grey[50],
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey[300]!, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: Colors.grey,
+                      border: Border.all(
+                        color: const Color(0xFFEEEEEE),
+                        width: 1.5,
+                      ),
+                    ), // 🌟 다이어트
+                    child: Icon(
+                      Icons.camera_alt_outlined,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ),
@@ -145,9 +145,9 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                         color: color,
                         shape: BoxShape.circle,
                         border: isSelected
-                            ? Border.all(color: Colors.grey[800]!, width: 3)
-                            : null,
-                      ),
+                            ? Border.all(color: Colors.black87, width: 3)
+                            : Border.all(color: Colors.black12),
+                      ), // 🌟 선택 시 블랙 선!
                       child: isSelected
                           ? Icon(
                               Icons.check_rounded,
@@ -163,7 +163,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
             const Text(
               '이모지',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey,
               ),
@@ -183,9 +183,9 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: _selectedEmoji == null
-                          ? Colors.grey[200]
+                          ? Colors.grey[100]
                           : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.do_not_disturb_alt_rounded,
@@ -205,9 +205,9 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: _selectedEmoji == emoji
-                            ? Colors.grey[200]
+                            ? Colors.grey[100]
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(emoji, style: const TextStyle(fontSize: 28)),
                     ),
@@ -215,17 +215,18 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 54, // 🌟 버튼 다이어트
               child: ElevatedButton(
                 onPressed: _onSubmit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[800],
+                  backgroundColor: Colors.black87, // 🌟 블랙
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
+                  elevation: 0,
                 ),
                 child: const Text(
                   '완료',

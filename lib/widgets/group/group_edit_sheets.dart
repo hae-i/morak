@@ -124,7 +124,6 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
       final colorStr = _selectedColorIndex != null
           ? '#${AppConstants.themeColors[_selectedColorIndex!].value.toRadixString(16).substring(2).toUpperCase()}'
           : null;
-
       await widget.repository.updateGroup(
         groupId: widget.groupId,
         name: name,
@@ -135,7 +134,6 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
         newLogoImage: _localLogo,
         existingLogoUrl: _existingLogoUrl,
       );
-
       if (mounted) {
         Navigator.pop(context);
         widget.onUpdated();
@@ -177,7 +175,11 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
           const SizedBox(height: 24),
           const Text(
             '모임 정보 수정',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 32),
           GestureDetector(
@@ -194,9 +196,9 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
               height: 120,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.grey[50], // 🌟 연회색
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!, width: 2),
+                border: Border.all(color: const Color(0xFFEEEEEE)), // 🌟 얇은 테두리
                 image: _localCover != null
                     ? DecorationImage(
                         image: kIsWeb
@@ -217,16 +219,17 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.add_photo_alternate_rounded,
+                          Icons.add_photo_alternate_outlined,
                           size: 32,
-                          color: Colors.grey[300],
+                          color: Colors.grey[400],
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '대표 사진 변경',
                           style: TextStyle(
-                            color: Colors.grey[400],
+                            color: Colors.grey[500],
                             fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -243,7 +246,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                   radius: 28,
                   backgroundColor: _selectedColorIndex != null
                       ? AppConstants.themeColors[_selectedColorIndex!]
-                      : Colors.grey[200],
+                      : Colors.grey[100],
                   backgroundImage: _localLogo != null
                       ? (kIsWeb
                             ? NetworkImage(_localLogo!.path)
@@ -271,19 +274,24 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                   controller: _nameController,
                   decoration: InputDecoration(
                     hintText: '모임 이름',
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
                     filled: true,
-                    fillColor: Colors.grey[50],
+                    fillColor: Colors.grey[50], // 🌟 플랫
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(
-                        color: Color(0xFFFF8A80),
+                        color: Colors.black87,
                         width: 1.5,
                       ),
-                    ),
+                    ), // 🌟 블랙
                   ),
                 ),
               ),
@@ -292,18 +300,25 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 54, // 🌟 버튼 다이어트
             child: ElevatedButton(
               onPressed: _isSaving ? null : _save,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF8A80),
+                backgroundColor: Colors.black87, // 🌟 블랙 통일
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               child: _isSaving
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text(
                       '수정 완료',
                       style: TextStyle(
@@ -381,7 +396,6 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
     if (nickname.isEmpty) return;
     setState(() => _isSaving = true);
     try {
-      // 🌟 memberData.id 로 접근!
       await widget.repository.updateGroupMemberProfile(
         memberId: widget.memberData.id,
         displayName: nickname,
@@ -391,8 +405,6 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
       );
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('🎉 프로필이 수정되었습니다!')));
         widget.onUpdated();
       }
     } catch (e) {
@@ -432,7 +444,11 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
           const SizedBox(height: 24),
           const Text(
             '내 모임 프로필 수정',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 32),
           GestureDetector(
@@ -449,13 +465,13 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Colors.grey[100],
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
               child: EditableAvatar(
                 radius: 45,
-                backgroundColor: Colors.grey[200]!,
+                backgroundColor: Colors.grey[100]!,
                 localImage: _localImage,
                 networkImageUrl: _existingImageUrl,
                 fallbackIcon: Icons.person_rounded,
@@ -463,7 +479,7 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -476,18 +492,19 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
             controller: _nicknameController,
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: Colors.grey[50], // 🌟 플랫
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(
-                  color: Color(0xFFFF8A80),
-                  width: 1.5,
-                ),
-              ),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Colors.black87, width: 1.5),
+              ), // 🌟 블랙
             ),
           ),
           const SizedBox(height: 16),
@@ -500,31 +517,45 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
                   value: _isBirthdayPublic,
                   onChanged: (val) =>
                       setState(() => _isBirthdayPublic = val ?? true),
-                  activeColor: const Color(0xFFFF8A80),
+                  activeColor: Colors.black87, // 🌟 블랙 통일
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               const Text(
                 '이 모임에 내 생일 공개하기 🎂',
-                style: TextStyle(fontSize: 14, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 54, // 🌟 버튼 다이어트
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveProfile,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF8A80),
+                backgroundColor: Colors.black87, // 🌟 블랙 통일
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               child: _isSaving
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text(
                       '수정 완료',
                       style: TextStyle(

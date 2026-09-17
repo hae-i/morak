@@ -39,12 +39,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
 
     if (confirm == true) {
-      //  Supabase 로그아웃 (서버 세션 끊기)
       await _userRepo.signOut();
-
-      if (mounted) {
-        context.go('/login');
-      }
+      if (mounted) context.go('/login');
     }
   }
 
@@ -55,44 +51,44 @@ class _MyPageScreenState extends State<MyPageScreen> {
     final birthday = _myProfile?.birthday;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색 배경
       appBar: AppBar(
         title: const Text(
           '마이페이지 👤',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 17,
+            color: Colors.black87,
+          ),
         ),
-        backgroundColor: Colors.grey[50],
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        scrolledUnderElevation: 0,
+        elevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         children: [
+          // 🌟 뚱뚱한 그림자 대신 얇고 깔끔한 테두리로 다이어트
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEEEEE)), // 얇은 테두리
             ),
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 36,
-                  backgroundColor: Colors.grey[100],
+                  radius: 32,
+                  backgroundColor: Colors.grey[50],
                   backgroundImage: profileUrl != null
                       ? NetworkImage(profileUrl)
                       : null,
                   child: profileUrl == null
                       ? Icon(
                           Icons.person_rounded,
-                          size: 36,
-                          color: Colors.grey[400],
+                          size: 32,
+                          color: Colors.grey[300],
                         )
                       : null,
                 ),
@@ -103,10 +99,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     children: [
                       Text(
                         '$nickname 님, 반가워요! 👋',
-                        style: TextStyle(
-                          fontSize: 20,
+                        style: const TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Colors.grey[800],
+                          color: Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -115,7 +111,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                             ? '🎂 생일: ${birthday.replaceAll('-', '. ')}'
                             : '생일 정보를 등록해주세요!',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: Colors.grey[500],
                           fontWeight: FontWeight.w600,
                         ),
@@ -126,13 +122,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
           Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 12),
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               '내 계정',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[400],
               ),
@@ -151,13 +147,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
               if (result == true) _loadUserProfile();
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 12),
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               '설정',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[400],
               ),
@@ -195,23 +191,28 @@ class _MyPageScreenState extends State<MyPageScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFF0F0F0),
+        ), // 🌟 메뉴 타일도 얇은 테두리로 분리
       ),
       child: ListTile(
         leading: Icon(
           icon,
           color: isDestructive ? Colors.red[300] : Colors.grey[600],
+          size: 22,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isDestructive ? Colors.red[400] : Colors.grey[700],
-            fontWeight: FontWeight.w500,
+            color: isDestructive ? Colors.red[400] : Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
           ),
         ),
         trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey[300]),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         onTap: onTap,
       ),
     );

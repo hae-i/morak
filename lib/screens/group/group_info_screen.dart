@@ -61,43 +61,64 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     final emoji = widget.groupData.themeEmoji;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색!
       appBar: AppBar(
         title: const Text(
           '모임 상세 정보',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
-        backgroundColor: Colors.grey[50],
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: Colors.black87,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
             Container(
-              height: 200,
+              height: 160, // 🌟 높이 다이어트
               width: double.infinity,
               decoration: BoxDecoration(
                 color: coverUrl != null
                     ? Colors.black
                     : (isDefaultColor
-                          ? Colors.grey[200]
-                          : activeColor.withOpacity(0.15)),
+                          ? Colors.grey[100]
+                          : activeColor.withOpacity(0.12)),
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFF0F0F0)),
                 image: coverUrl != null
                     ? DecorationImage(
                         image: NetworkImage(coverUrl),
                         fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black26,
+                          BlendMode.darken,
+                        ),
                       )
                     : null,
               ),
               child: Center(
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 70, // 🌟 로고 사이즈 살짝 줄임
+                  height: 70,
                   decoration: BoxDecoration(
-                    color: coverUrl != null ? Colors.white24 : Colors.white54,
+                    color: Colors.white,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                     image: logoUrl != null
                         ? DecorationImage(
                             image: NetworkImage(logoUrl),
@@ -110,16 +131,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           child: (emoji != null && emoji.isNotEmpty)
                               ? Text(
                                   emoji,
-                                  style: const TextStyle(fontSize: 40),
+                                  style: const TextStyle(fontSize: 34),
                                 )
                               : Icon(
                                   Icons.groups_rounded,
                                   color: coverUrl != null
-                                      ? Colors.white
+                                      ? activeColor
                                       : (isDefaultColor
                                             ? Colors.grey[400]
                                             : activeColor),
-                                  size: 40,
+                                  size: 34,
                                 ),
                         )
                       : null,
@@ -129,51 +150,73 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             const SizedBox(height: 24),
             Text(
               widget.groupData.name,
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 48),
 
+            // 🌟 리스트 컨테이너 다이어트 (그림자 제거, 라인 추가)
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEEEEEE)), // 얇은 라인
               ),
               child: Column(
                 children: [
                   ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 4,
+                    ),
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
                         Icons.edit_rounded,
                         color: Colors.black87,
+                        size: 20,
                       ),
                     ),
                     title: const Text(
                       '모임 정보 수정',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.chevron_right_rounded,
-                      color: Colors.grey,
+                      color: Colors.grey[300],
                     ),
                     onTap: _openGroupEditSheet,
                   ),
-                  const Divider(height: 1, indent: 60),
+                  const Divider(
+                    height: 1,
+                    indent: 64,
+                    color: Color(0xFFF5F5F5),
+                  ),
                   ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 4,
+                    ),
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: Colors.red[50],
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
-                        Icons.delete_rounded,
+                        Icons.delete_outline_rounded,
                         color: Colors.redAccent,
+                        size: 20,
                       ),
                     ),
                     title: const Text(
@@ -181,11 +224,12 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       style: TextStyle(
                         color: Colors.redAccent,
                         fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.chevron_right_rounded,
-                      color: Colors.grey,
+                      color: Colors.grey[300],
                     ),
                     onTap: _deleteGroup,
                   ),

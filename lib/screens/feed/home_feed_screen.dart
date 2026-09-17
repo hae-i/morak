@@ -5,7 +5,6 @@ import '../../constants/app_constants.dart';
 import '../../providers/feed_provider.dart';
 import '../../widgets/feed/feed_card.dart';
 
-// 🌟 스크롤 컨트롤러 ConsumerStatefulWidget
 class HomeFeedScreen extends ConsumerStatefulWidget {
   const HomeFeedScreen({super.key});
   @override
@@ -18,9 +17,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   @override
   void initState() {
     super.initState();
-    // 🌟 스크롤을 내릴 때마다 이 함수가 실행
     _scrollController.addListener(() {
-      // 💡 현재 스크롤 위치가 맨 밑바닥에서 50픽셀 이내로 가까워지면?
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 50) {
         ref.read(feedProvider.notifier).loadMore();
@@ -39,22 +36,24 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final feedState = ref.watch(feedProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색 배경!
       appBar: AppBar(
         title: const Text(
           '모락모락 피드 ☁️',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.refresh(feedProvider.future),
-        color: AppConstants.primaryColor,
+        color: Colors.black87, // 🌟 힙하게 블랙 스피너
+        backgroundColor: Colors.white,
         child: feedState.when(
           loading: () => const Center(
-            child: CircularProgressIndicator(color: AppConstants.primaryColor),
+            child: CircularProgressIndicator(color: Colors.black87),
           ),
           error: (error, stack) =>
               Center(child: Text('피드를 불러오지 못했습니다: $error')),
@@ -66,44 +65,40 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                   children: [
                     Icon(
                       Icons.photo_album_outlined,
-                      size: 64,
-                      color: Colors.grey[300],
+                      size: 60,
+                      color: Colors.grey[200],
                     ),
                     const SizedBox(height: 16),
                     Text(
                       '아직 모임에 기록된 피드가 없어요!\n모임에서 기록을 남겨보세요.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 15),
                     ),
                   ],
                 ),
               );
             }
             return ListView.builder(
-              controller: _scrollController, // 🌟 감지기를 리스트에 부착
-              physics:
-                  const AlwaysScrollableScrollPhysics(), // 내용이 적어도 당겨서 새로고침 되도록
-              itemCount: feeds.length + 1, // 🌟 로딩 스피너를 보여주기 위해 +1
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: feeds.length + 1,
               itemBuilder: (context, index) {
-                // 💡 맨 마지막 아이템을 그릴 차례일 때
                 if (index == feeds.length) {
-                  // 더 가져올 데이터가 남아있다면 로딩 스피너를 띄움
                   final hasMore = ref.read(feedProvider.notifier).hasMore;
                   if (hasMore) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
                         child: CircularProgressIndicator(
-                          color: AppConstants.primaryColor,
+                          color: Colors.black87,
+                          strokeWidth: 2,
                         ),
                       ),
                     );
                   }
-                  // 데이터가 더 이상 없으면 빈 공간만
                   return const SizedBox(height: 40);
                 }
 
-                // 정상적으로 피드 카드 그리기
                 return FeedCard(
                   feed: feeds[index],
                   onLike: () {

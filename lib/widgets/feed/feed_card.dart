@@ -5,20 +5,18 @@ import '../../utils/color_utils.dart';
 import '../../models/meetup_model.dart';
 
 class FeedCard extends StatelessWidget {
-  final MeetupModel feed; // 🌟 Map<String, dynamic> 에서 MeetupModel 로 변경!
+  final MeetupModel feed;
   final VoidCallback onLike;
 
   const FeedCard({super.key, required this.feed, required this.onLike});
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 1. 모델 객체에서 바로 뽑아오기
-    final group = feed.group; // MeetupModel 안의 GroupModel
+    final group = feed.group;
     final groupName = group?.name ?? '알 수 없는 모임';
     final emoji = group?.themeEmoji ?? '☁️';
     final themeColor = ColorUtils.stringToColor(group?.themeColor);
 
-    // 🌟 2. 날짜 & 텍스트 포맷팅
     final rawDate = feed.date;
     String formattedDate = '';
     if (rawDate.isNotEmpty) {
@@ -34,38 +32,28 @@ class FeedCard extends StatelessWidget {
     final location = feed.location ?? '';
     final menu = feed.menu ?? '';
     final content = [location, menu].where((s) => s.isNotEmpty).join(' · ');
-
-    // 🌟 3. 사진 유무 확인
     final photos = feed.photos;
     final imageUrl = photos.isNotEmpty ? photos.first : null;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16), // 🌟 24 -> 16 날렵하게
+        border: Border.all(color: const Color(0xFFEEEEEE)), // 🌟 그림자 폭파! 얇은 선!
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 💡 상단 헤더
           Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                // 🌟 그룹 로고 이미지가 있으면 띄우고, 없으면 이모지 띄우기
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.15),
+                    color: themeColor.withOpacity(0.12),
                     shape: BoxShape.circle,
                     image: group?.logoImageUrl != null
                         ? DecorationImage(
@@ -78,7 +66,7 @@ class FeedCard extends StatelessWidget {
                       ? Center(
                           child: Text(
                             emoji,
-                            style: const TextStyle(fontSize: 24),
+                            style: const TextStyle(fontSize: 22),
                           ),
                         )
                       : null,
@@ -92,13 +80,18 @@ class FeedCard extends StatelessWidget {
                         groupName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 15,
+                          color: Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         formattedDate,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -113,42 +106,52 @@ class FeedCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // 💡 메인 사진
           if (imageUrl != null)
             CachedNetworkImage(
               imageUrl: imageUrl,
               fit: BoxFit.cover,
               width: double.infinity,
-              height: 300,
-              placeholder: (context, url) => const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
-              ), // 로딩 중 띄워줄 위젯
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.error), // 에러 시 띄워줄 위젯
+              height: 260, // 🌟 높이 다이어트
+              placeholder: (context, url) => Container(
+                height: 260,
+                color: Colors.grey[50],
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.black87,
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
-
-          // 💡 텍스트 본문 (장소 & 메뉴)
           if (content.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Text(
                 content,
-                style: const TextStyle(fontSize: 15, height: 1.4),
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: Colors.black87,
+                ),
               ),
             ),
-
-          // 💡 하단 액션 바
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.favorite_border_rounded),
+                  icon: const Icon(
+                    Icons.favorite_border_rounded,
+                    color: Colors.black87,
+                  ),
                   onPressed: onLike,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  icon: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: Colors.black87,
+                  ),
                   onPressed: () {},
                 ),
               ],

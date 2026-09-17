@@ -28,7 +28,6 @@ class MemberDrawer extends StatefulWidget {
     required this.repository,
     required this.onMemberTap,
   });
-
   @override
   State<MemberDrawer> createState() => _MemberDrawerState();
 }
@@ -49,13 +48,9 @@ class _MemberDrawerState extends State<MemberDrawer> {
       context: context,
       groupId: widget.groupId,
     );
-
     if (mounted) {
       final isWideScreen = MediaQuery.of(context).size.width > 600;
-
-      if (!isWideScreen) {
-        Navigator.pop(context);
-      }
+      if (!isWideScreen) Navigator.pop(context);
     }
   }
 
@@ -108,7 +103,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
       title: '권한 변경',
       content: '${member.displayName} 님을 $actionText 시키겠습니까?',
       confirmText: '변경',
-      confirmColor: widget.isDefaultColor ? Colors.blue : widget.activeColor,
+      confirmColor: Colors.blue,
       icon: Icons.manage_accounts_rounded,
     );
     if (confirm == true) {
@@ -129,31 +124,26 @@ class _MemberDrawerState extends State<MemberDrawer> {
     final iAmHost = widget.members.any(
       (m) => m.userId == currentUserId && m.role == 'host',
     );
-    final btnTextColor = widget.isDefaultColor
-        ? Colors.white
-        : ColorUtils.getTextColor(widget.activeColor);
 
-    // 🌟 MemberModel의 속성들로 정렬 로직 수정!
     List<MemberModel> sortedMembers = List.from(widget.members);
-    if (_sortType == 'joined') {
+    if (_sortType == 'joined')
       sortedMembers.sort(
         (a, b) => (a.joinedAt ?? '').compareTo(b.joinedAt ?? ''),
       );
-    } else if (_sortType == 'name') {
+    else if (_sortType == 'name')
       sortedMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
-    } else if (_sortType == 'rate') {
+    else if (_sortType == 'rate')
       sortedMembers.sort((a, b) {
         int r = b.attendanceRate.compareTo(a.attendanceRate);
         return r != 0 ? r : (a.joinedAt ?? '').compareTo(b.joinedAt ?? '');
       });
-    }
 
     String sortLabel = _sortType == 'joined'
         ? '참가순'
         : (_sortType == 'name' ? '가나다순' : '참여율순');
 
     return Drawer(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -164,11 +154,15 @@ class _MemberDrawerState extends State<MemberDrawer> {
                 children: [
                   const Text(
                     '멤버 관리 👥',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: Colors.black87),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -179,28 +173,30 @@ class _MemberDrawerState extends State<MemberDrawer> {
               child: ElevatedButton.icon(
                 onPressed: _copyInviteLink,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.isDefaultColor
-                      ? Colors.grey[800]
-                      : widget.activeColor,
-                  foregroundColor: btnTextColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.black87, // 🌟 블랙 버튼으로 통일!
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12), // 다이어트
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
                 ),
-                icon: Icon(Icons.share_rounded, color: btnTextColor),
-                label: Text(
+                icon: const Icon(
+                  Icons.share_outlined,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                label: const Text(
                   '초대링크 복사하기',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: btnTextColor,
+                    fontSize: 15,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -211,6 +207,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontWeight: FontWeight.bold,
+                      fontSize: 13,
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -222,28 +219,29 @@ class _MemberDrawerState extends State<MemberDrawer> {
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 10,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFEEEEEE)),
                       ),
                       child: Row(
                         children: [
                           Text(
                             sortLabel,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[800],
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black87,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(
+                          const Icon(
                             Icons.keyboard_arrow_down_rounded,
                             size: 16,
-                            color: Colors.grey[800],
+                            color: Colors.black87,
                           ),
                         ],
                       ),
@@ -267,7 +265,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
               ),
             ),
             const SizedBox(height: 8),
-            const Divider(height: 1),
+            const Divider(height: 1, color: Color(0xFFF0F0F0)),
             Expanded(
               child: sortedMembers.isEmpty
                   ? const Center(child: Text('멤버가 없어요.'))
@@ -287,7 +285,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                         return ListTile(
                           onTap: () => widget.onMemberTap(member),
                           leading: CircleAvatar(
-                            backgroundColor: Colors.grey[200],
+                            backgroundColor: Colors.grey[100],
                             backgroundImage: member.profileImageUrl != null
                                 ? NetworkImage(member.profileImageUrl!)
                                 : null,
@@ -304,10 +302,13 @@ class _MemberDrawerState extends State<MemberDrawer> {
                           ),
                           title: Text(
                             member.displayName + (isMe ? ' (나)' : ''),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
                           ),
                           trailing: (isMe || !iAmHost)
-                              ? const SizedBox.shrink() // 내가 방장이 아니면 권한 메뉴 아예 증발시킴! 🚫
+                              ? const SizedBox.shrink()
                               : PopupMenuButton<String>(
                                   icon: const Icon(
                                     Icons.more_vert_rounded,
@@ -320,7 +321,6 @@ class _MemberDrawerState extends State<MemberDrawer> {
                                   itemBuilder: (context) => [
                                     PopupMenuItem(
                                       value: 'role',
-                                      // 이미 상대가 방장이면 강등, 아니면 승급 텍스트
                                       child: Text(
                                         isHost ? '일반 멤버로 강등' : '방장 권한 부여',
                                       ),
@@ -338,7 +338,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                       },
                     ),
             ),
-            const Divider(height: 1),
+            const Divider(height: 1, color: Color(0xFFF0F0F0)),
             Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom > 0
@@ -355,15 +355,31 @@ class _MemberDrawerState extends State<MemberDrawer> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         hintText: '수동으로 멤버 추가',
+                        hintStyle: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[400],
+                        ),
                         filled: true,
-                        fillColor: Colors.grey[200],
+                        fillColor: Colors.grey[50],
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          borderSide: const BorderSide(
+                            color: Color(0xFFEEEEEE),
+                          ),
+                        ), // 🌟 얇은 테두리
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFEEEEEE),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.black87),
                         ),
                       ),
                       onSubmitted: (_) => _addMember(),
@@ -371,14 +387,24 @@ class _MemberDrawerState extends State<MemberDrawer> {
                   ),
                   const SizedBox(width: 12),
                   _isSaving
-                      ? const CircularProgressIndicator(color: Colors.grey)
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.black87,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        )
                       : IconButton(
                           onPressed: _addMember,
-                          icon: const Icon(Icons.person_add_rounded),
-                          color: Colors.grey[800],
+                          icon: const Icon(Icons.person_add_outlined, size: 20),
+                          color: Colors.white,
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[200],
-                          ),
+                            backgroundColor: Colors.black87,
+                          ), // 🌟 추가 아이콘 블랙
                         ),
                 ],
               ),

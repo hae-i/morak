@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // 🌟 Supabase 추가!
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../constants/app_constants.dart';
 import '../../repositories/user_repository.dart';
@@ -8,7 +8,6 @@ import '../common/common_widgets.dart';
 
 class GroupJoinSheet extends StatefulWidget {
   final String groupId;
-  // ❌ groupName은 더 이상 URL에서 안 받으므로 삭제!
 
   const GroupJoinSheet({super.key, required this.groupId});
 
@@ -23,7 +22,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
   String? _globalProfileImageUrl;
   bool _isBirthdayPublic = true;
 
-  String _fetchedGroupName = '모임'; // 🌟 DB에서 가져올 모임 이름 저장소
+  String _fetchedGroupName = '모임';
 
   final _userRepo = UserRepository();
   final _groupRepo = GroupRepository();
@@ -31,7 +30,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
   @override
   void initState() {
     super.initState();
-    _loadInitialData(); // 🌟 이름 변경!
+    _loadInitialData();
   }
 
   @override
@@ -43,8 +42,6 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
   Future<void> _loadInitialData() async {
     try {
       final currentUserId = Supabase.instance.client.auth.currentUser!.id;
-
-      // 🌟 내가 이미 이 모임의 멤버인지 DB에서 찾아보기
       final memberCheck = await Supabase.instance.client
           .from('group_members')
           .select()
@@ -52,7 +49,6 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
           .eq('user_id', currentUserId)
           .maybeSingle();
 
-      // 이미 가입된 유저라면?!
       if (memberCheck != null) {
         if (mounted) {
           Navigator.pop(context, true);
@@ -63,9 +59,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
         return;
       }
 
-      // 🌟 프로필 + 모임 이름 한방에 가져오기
       final profile = await _userRepo.fetchMyGlobalProfile();
-
       String tempGroupName = '모임';
       try {
         final groupData = await Supabase.instance.client
@@ -105,22 +99,20 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
         nickname: nickname,
         profileImageUrl: _globalProfileImageUrl,
       );
-
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('🎉 $_fetchedGroupName 모임에 가입되었습니다!'),
-            backgroundColor: AppConstants.primaryColor,
+            backgroundColor: Colors.black87,
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미 가입된 모임이거나 에러가 발생했습니다.')),
         );
-      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -146,10 +138,11 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
               height: 200,
               child: Center(
                 child: CircularProgressIndicator(
-                  color: AppConstants.primaryColor,
+                  color: Colors.black87,
+                  strokeWidth: 2,
                 ),
               ),
-            )
+            ) // 🌟 블랙!
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -165,7 +158,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                 Text(
                   '💌 $_fetchedGroupName',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     color: Colors.grey[500],
                     fontWeight: FontWeight.bold,
                   ),
@@ -173,12 +166,15 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                 const SizedBox(height: 8),
                 const Text(
                   '모임 프로필 설정',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
                 const SizedBox(height: 32),
-
                 CircleAvatar(
-                  radius: 48,
+                  radius: 46,
                   backgroundColor: Colors.grey[100],
                   backgroundImage: _globalProfileImageUrl != null
                       ? NetworkImage(_globalProfileImageUrl!)
@@ -191,8 +187,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                         )
                       : null,
                 ),
-                const SizedBox(height: 24),
-
+                const SizedBox(height: 28),
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -201,13 +196,11 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                   ),
                 ),
                 const SizedBox(height: 8),
-
                 CustomTextField(
                   controller: _nicknameController,
                   hint: '예: 모락대장',
                 ),
                 const SizedBox(height: 16),
-
                 Row(
                   children: [
                     SizedBox(
@@ -217,32 +210,45 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
                         value: _isBirthdayPublic,
                         onChanged: (val) =>
                             setState(() => _isBirthdayPublic = val ?? true),
-                        activeColor: AppConstants.primaryColor,
+                        activeColor: Colors.black87, // 🌟 블랙!
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     const Text(
                       '이 모임에 내 생일 공개하기 🎂',
-                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 32),
-
                 SizedBox(
                   width: double.infinity,
-                  height: 56,
+                  height: 54, // 🌟 버튼 다이어트
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _joinGroup,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConstants.primaryColor,
+                      backgroundColor: Colors.black87, // 🌟 블랙버튼!
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child: _isSaving
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
                         : const Text(
                             '이 프로필로 참여하기',
                             style: TextStyle(

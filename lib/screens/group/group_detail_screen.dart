@@ -782,7 +782,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     return RefreshIndicator(
       color: Colors.black87,
-      onRefresh: _loadAllData,
+      onRefresh: () => _loadAllData(isSilentRefresh: true),
       child: albumData.isEmpty
           ? Center(
               child: Column(

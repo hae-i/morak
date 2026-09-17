@@ -34,12 +34,11 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
 
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
-
   List<MemberModel> _members = [];
   final Set<String> _selectedMemberIds = {};
-
   final ImagePicker _picker = ImagePicker();
   List<dynamic> _photos = [];
+
   final _groupRepo = locator<GroupRepository>();
   final _meetupRepo = locator<MeetupRepository>();
 
@@ -61,7 +60,6 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     try {
       _members = await _groupRepo.fetchGroupMembers(widget.groupId);
       if (mounted) setState(() {});
-
       if (widget.initialMeetup != null) {
         _titleController.text = widget.initialMeetup!.title ?? '';
         _locationController.text = widget.initialMeetup!.location ?? '';
@@ -92,12 +90,12 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                    horizontal: 20,
+                    vertical: 12,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: Colors.grey[200]!),
+                      bottom: BorderSide(color: Color(0xFFEEEEEE)),
                     ),
                   ),
                   child: Row(
@@ -110,14 +108,14 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
                         child: const Text(
                           '완료',
                           style: TextStyle(
-                            color: Color(0xFFFF8A80),
+                            color: Colors.black87,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 15,
                           ),
                         ),
                       ),
@@ -164,7 +162,6 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     final menu = _menuController.text.trim();
 
     if (title.isEmpty && location.isEmpty && menu.isEmpty && _photos.isEmpty) {
-      // 💡 UiUtils 한 줄 컷!
       UiUtils.showWarningDialog(
         context: context,
         title: '빈 기록이에요!',
@@ -195,7 +192,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                   ? '🎉 기록과 사진이 저장되었어요!'
                   : '🎉 기록이 수정되었어요!',
             ),
-            backgroundColor: const Color(0xFFFF8A80),
+            backgroundColor: Colors.black87,
           ),
         );
         Navigator.pop(context, true);
@@ -224,34 +221,35 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 '대표 사진이 변경되었습니다! 📸',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              backgroundColor: Color(0xFFFF8A80),
+              backgroundColor: Colors.black87,
               duration: Duration(seconds: 1),
             ),
           );
         }
       },
       child: Container(
-        width: 100,
-        height: 100,
+        width: 86, // 🌟 사진첩 썸네일 박스 다이어트
+        height: 86,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           border: isRepresentative
-              ? Border.all(color: const Color(0xFFFF8A80), width: 3)
-              : null,
-          borderRadius: BorderRadius.circular(16),
+              ? Border.all(color: Colors.black87, width: 2)
+              : Border.all(color: const Color(0xFFEEEEEE)),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Stack(
           children: [
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(isRepresentative ? 12 : 13),
                 child: item is String
                     ? CachedNetworkImage(
                         imageUrl: item,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const Center(
                           child: CircularProgressIndicator(
-                            color: Color(0xFFFF8A80),
+                            color: Colors.black87,
+                            strokeWidth: 2,
                           ),
                         ),
                         errorWidget: (context, url, error) =>
@@ -279,7 +277,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                     color: Colors.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
               ),
             ),
@@ -289,13 +287,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 left: 0,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 6,
+                    vertical: 3,
                   ),
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFF8A80),
+                    color: Colors.black87,
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(13),
+                      topLeft: Radius.circular(12),
                       bottomRight: Radius.circular(8),
                     ),
                   ),
@@ -320,40 +318,51 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     final isEditMode = widget.initialMeetup != null;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색 배경
       appBar: AppBar(
         title: Text(
           isEditMode ? '기록 수정하기 ✏️' : '기록 남기기 ✏️',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
-        backgroundColor: Colors.grey[50],
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: Colors.black87,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 💡 SectionTitle과 CustomTextField 레고 블록 도입!
-            const SectionTitle('무슨 만남이었나요?'), const SizedBox(height: 12),
+            const SectionTitle('무슨 만남이었나요?'),
+            const SizedBox(height: 12),
             CustomTextField(
               controller: _titleController,
               hint: '예) 모락이 생일파티 🎂',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            const SectionTitle('만난 날짜'), const SizedBox(height: 12),
+            const SectionTitle('만난 날짜'),
+            const SizedBox(height: 12),
             InkWell(
               onTap: _pickDate,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
+                  horizontal: 16,
+                  vertical: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFEEEEEE)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -361,23 +370,28 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                     Text(
                       '${_selectedDate.year}. ${_selectedDate.month.toString().padLeft(2, '0')}. ${_selectedDate.day.toString().padLeft(2, '0')}',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         color: Colors.grey[800],
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Icon(Icons.calendar_month_rounded, color: Colors.grey[400]),
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      color: Colors.grey[400],
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            const SectionTitle('누가 참석했나요?'), const SizedBox(height: 12),
+            const SectionTitle('누가 참석했나요?'),
+            const SizedBox(height: 12),
             _members.isEmpty
                 ? Text(
                     '등록된 멤버가 없어요.\n이전 화면에서 멤버를 먼저 추가해주세요!',
-                    style: TextStyle(color: Colors.grey[500]),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
                   )
                 : Wrap(
                     spacing: 8.0,
@@ -388,36 +402,37 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                       return FilterChip(
                         label: Text(member.displayName),
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[700],
+                          color: isSelected ? Colors.white : Colors.grey[600],
                           fontWeight: isSelected
                               ? FontWeight.bold
-                              : FontWeight.normal,
+                              : FontWeight.w500,
+                          fontSize: 13,
                         ),
                         selected: isSelected,
                         onSelected: (bool selected) {
                           setState(() {
-                            if (selected) {
+                            if (selected)
                               _selectedMemberIds.add(memberId);
-                            } else {
+                            else
                               _selectedMemberIds.remove(memberId);
-                            }
                           });
                         },
-                        selectedColor: const Color(0xFFFF8A80),
+                        selectedColor: Colors.black87,
                         checkmarkColor: Colors.white,
                         backgroundColor: Colors.white,
+                        showCheckmark: false,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
                             color: isSelected
-                                ? Colors.transparent
-                                : Colors.grey[300]!,
+                                ? Colors.black87
+                                : const Color(0xFFE0E0E0),
                           ),
                         ),
                       );
                     }).toList(),
                   ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -427,9 +442,9 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 Text(
                   '사진을 터치하면 대표로 지정돼요!',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: Colors.grey[400],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -441,23 +456,23 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 children: [
                   InkWell(
                     onTap: _pickImages,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      width: 100,
-                      height: 100,
+                      width: 86,
+                      height: 86,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[300]!),
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFEEEEEE)),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.add_a_photo_rounded,
+                            Icons.add_a_photo_outlined,
                             color: Colors.grey[400],
-                            size: 28,
+                            size: 24,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -465,7 +480,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                             style: TextStyle(
                               color: Colors.grey[500],
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -478,16 +493,18 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            const SectionTitle('장소'), const SizedBox(height: 12),
+            const SectionTitle('장소'),
+            const SizedBox(height: 12),
             CustomTextField(
               controller: _locationController,
               hint: '예) 구로몬 시장, 도톤보리',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            const SectionTitle('메뉴'), const SizedBox(height: 12),
+            const SectionTitle('메뉴'),
+            const SizedBox(height: 12),
             CustomTextField(
               controller: _menuController,
               hint: '예) 오코노미야키, 생맥주 🍻',
@@ -496,22 +513,29 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
 
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 54,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveMeetup,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF8A80),
+                  backgroundColor: Colors.black87,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 0,
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : Text(
                         isEditMode ? '수정 완료' : '기록 완료',
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),

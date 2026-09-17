@@ -16,10 +16,10 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 16,
+      style: const TextStyle(
+        fontSize: 15,
         fontWeight: FontWeight.bold,
-        color: Colors.grey[800],
+        color: Colors.black87,
       ),
     );
   }
@@ -42,23 +42,23 @@ class CustomTextField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400]),
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Colors.grey[50], // 🌟 플랫한 연회색 배경
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
+          horizontal: 16,
+          vertical: 16,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.transparent),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFEEEEEE)), // 얇은 테두리
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(
-            color: AppConstants.primaryColor,
+            color: Colors.black87,
             width: 1.5,
-          ),
+          ), // 🌟 포인트는 블랙!
         ),
       ),
     );
@@ -88,8 +88,6 @@ class EditableAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🗑️ 안 쓰던 찌꺼기 변수(hasImage) 삭제 완료!
-
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -100,26 +98,25 @@ class EditableAvatar extends StatelessWidget {
             decoration: BoxDecoration(
               color: backgroundColor,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(
+                color: const Color(0xFFEEEEEE),
+                width: 1,
+              ), // 🌟 테두리 다이어트
             ),
             child: localImage != null
                 ? ClipOval(
                     child: kIsWeb
-                        ? Image.network(
-                            localImage!.path,
-                            fit: BoxFit.cover,
-                          ) // 로컬 이미지 미리보기는 그대로!
+                        ? Image.network(localImage!.path, fit: BoxFit.cover)
                         : Image.file(File(localImage!.path), fit: BoxFit.cover),
                   )
                 : (networkImageUrl != null
                       ? ClipOval(
-                          // 🌟 드디어 CachedNetworkImage 출격! 이제 앱 껐다 켜도 프사가 바로 뜹니다!
                           child: CachedNetworkImage(
                             imageUrl: networkImageUrl!,
                             fit: BoxFit.cover,
                             placeholder: (context, url) =>
                                 const CircularProgressIndicator(
-                                  color: AppConstants.primaryColor,
+                                  color: Colors.black87,
                                 ),
                             errorWidget: (context, url, error) => Icon(
                               fallbackIcon,
@@ -138,7 +135,7 @@ class EditableAvatar extends StatelessWidget {
                             : Icon(
                                 fallbackIcon,
                                 size: radius * 0.8,
-                                color: Colors.grey[400],
+                                color: Colors.grey[300],
                               ))),
           ),
           Positioned(
@@ -147,7 +144,7 @@ class EditableAvatar extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(radius * 0.15),
               decoration: BoxDecoration(
-                color: AppConstants.primaryColor,
+                color: Colors.black87, // 🌟 뱃지도 블랙으로 힙하게!
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),

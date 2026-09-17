@@ -41,18 +41,26 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white, // 🌟 순백색 배경
       appBar: AppBar(
         title: const Text(
           '내 모임',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 17,
+            color: Colors.black87,
+          ),
         ),
-        backgroundColor: Colors.grey[50],
-        surfaceTintColor: Colors.grey[50],
+        backgroundColor: Colors.white,
+        scrolledUnderElevation: 0,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_rounded, size: 28),
+            icon: const Icon(
+              Icons.add_rounded,
+              size: 28,
+              color: Colors.black87,
+            ),
             onPressed: () async {
               final result = await Navigator.push(
                 context,
@@ -66,11 +74,15 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
         ],
       ),
       body: RefreshIndicator(
-        color: Colors.grey[800],
+        color: Colors.black87, // 🌟 블랙 스피너
+        backgroundColor: Colors.white,
         onRefresh: _loadGroups,
         child: _isLoading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+                child: CircularProgressIndicator(
+                  color: Colors.black87,
+                  strokeWidth: 2,
+                ),
               )
             : _myGroups.isEmpty
             ? Center(
@@ -79,20 +91,20 @@ class _MyGroupScreenState extends State<MyGroupScreen> {
                   children: [
                     Icon(
                       Icons.group_off_rounded,
-                      size: 64,
-                      color: Colors.grey[300],
+                      size: 54,
+                      color: Colors.grey[200],
                     ),
                     const SizedBox(height: 16),
                     Text(
                       '아직 등록된 모임이 없어요.\n우측 상단 버튼을 눌러보세요! ☁️',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 14),
                     ),
                   ],
                 ),
               )
             : ListView.separated(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 itemCount: _myGroups.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {

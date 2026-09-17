@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../constants/app_constants.dart';
 import '../main_skeleton.dart';
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_widgets.dart';
@@ -54,8 +53,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(
-            primary: AppConstants.primaryColor,
-          ),
+            primary: Colors.black87,
+          ), // 🌟 블랙 테마 달력
         ),
         child: child!,
       ),
@@ -98,17 +97,25 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white, // 🌟 순백색
       appBar: AppBar(
         title: const Text(
           '환영합니다! 🎉',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 17,
+            color: Colors.black87,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: Colors.grey[800]),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: Colors.black87,
+          ),
           onPressed: () async => await _userRepo.signOut(),
         ),
       ),
@@ -124,18 +131,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   height: 1.4,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 '나중에 언제든 변경할 수 있어요!',
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 15, color: Colors.grey[500]),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
               Center(
                 child: EditableAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey[100]!,
+                  radius: 48,
+                  backgroundColor: Colors.grey[50]!,
                   localImage: _profileImage,
                   fallbackIcon: Icons.person_rounded,
                   onTap: () => UiUtils.showImageActionMenu(
@@ -146,25 +154,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
               const SectionTitle('닉네임'),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               CustomTextField(controller: _nicknameController, hint: '예: 모락대장'),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               const SectionTitle('생년월일'),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               InkWell(
                 onTap: _pickBirthday,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 18,
+                    vertical: 16,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.grey[50], // 🌟 플랫 배경
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFEEEEEE)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -174,39 +183,48 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             ? '${_selectedBirthday!.year}-${_selectedBirthday!.month.toString().padLeft(2, '0')}-${_selectedBirthday!.day.toString().padLeft(2, '0')}'
                             : '예) 1996-03-12',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           color: _selectedBirthday != null
                               ? Colors.black87
                               : Colors.grey[400],
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Icon(
                         Icons.calendar_month_rounded,
                         color: Colors.grey[400],
+                        size: 20,
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 56),
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 54, // 🌟 버튼 다이어트
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _completeSignUp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryColor,
+                    backgroundColor: Colors.black87, // 🌟 블랙 버튼
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     elevation: 0,
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text(
                           '모락 시작하기',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
