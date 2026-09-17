@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../constants/app_constants.dart';
 
@@ -19,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _googleSignIn() async {
     setState(() => _isLoading = true);
+
     try {
       if (kIsWeb) {
         await Supabase.instance.client.auth.signInWithOAuth(
@@ -27,13 +29,18 @@ class _LoginScreenState extends State<LoginScreen> {
           queryParams: {'prompt': 'select_account'},
         );
       } else {
-        const webClientId =
-            '403079315316-hq0rgut0fqs2o4igfp3q7hponq31poq7.apps.googleusercontent.com';
+        // 🌟 금고(dotenv)는 main에서 이미 열었으니, 여기서 키만 쏙 꺼냅니다!
+        final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'];
+        if (webClientId == null) throw '환경변수에 GOOGLE_WEB_CLIENT_ID가 없습니다.';
+
         final googleSignIn = GoogleSignIn.instance;
+
         if (!_isGoogleInitialized) {
+          // 🌟 꺼내온 키를 serverClientId에 주입합니다.
           await googleSignIn.initialize(serverClientId: webClientId);
           _isGoogleInitialized = true;
         }
+
         await googleSignIn.signOut();
 
         final GoogleSignInAccount? googleUser = await googleSignIn
@@ -45,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final googleAuth = googleUser.authentication;
         final idToken = googleAuth.idToken;
+
         if (idToken == null) throw 'ID 토큰을 찾을 수 없어요.';
 
         await Supabase.instance.client.auth.signInWithIdToken(

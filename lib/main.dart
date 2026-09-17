@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'constants/app_constants.dart';
+import 'repositories/user_repository.dart';
+import 'repositories/group_repository.dart';
+import 'widgets/common/common_widgets.dart';
 
 import 'screens/main_skeleton.dart';
 import 'screens/auth/login_screen.dart';
@@ -8,9 +14,11 @@ import 'screens/profile/profile_setup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
   await Supabase.initialize(
-    url: 'https://kzatuowxrixutuclglfj.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6YXR1b3d4cml4dXR1Y2xnbGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNDYxMDAsImV4cCI6MjEwMDcyMjEwMH0.IaEPcu2f73l2HUhiy9h6e3acelrL5CpR3T9a7OQj7-E',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   runApp(const MorakApp());
 }
@@ -23,7 +31,9 @@ class MorakApp extends StatelessWidget {
     return MaterialApp(
       title: 'Morak',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8A80)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppConstants.primaryColor,
+        ), // 🌟 하드코딩 제거
         useMaterial3: true,
       ),
       home: const AuthGate(),
@@ -39,10 +49,13 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   Widget _currentWidget = const Scaffold(
-    body: Center(child: CircularProgressIndicator(color: Color(0xFFFF8A80))),
+    body: Center(
+      child: CircularProgressIndicator(color: AppConstants.primaryColor),
+    ), // 🌟 하드코딩 제거
   );
 
   late AppLinks _appLinks;
+  final _userRepo = UserRepository(); // 🌟 레포지토리 주입
 
   @override
   void initState() {
@@ -68,32 +81,25 @@ class _AuthGateState extends State<AuthGate> {
 
   void _initDeepLinks() {
     _appLinks = AppLinks();
-
     _appLinks.uriLinkStream.listen((uri) {
       if (uri.scheme == 'morak' && uri.host == 'invite') {
         final groupId = uri.queryParameters['groupId'];
         final groupName = uri.queryParameters['groupName'] ?? '모임';
-
         if (groupId != null) {
-          // 🌟 투박한 팝업 대신, 예쁜 프로필 설정 시트를 띄웁니다!
           _showJoinProfileSheet(groupId, groupName);
         }
       }
     });
   }
 
-  // 🌟 새롭게 추가된 바텀 시트 호출 로직!
   void _showJoinProfileSheet(String groupId, String groupName) {
     if (!mounted) return;
-
-    // 로그인이 안 되어 있다면 막기
     if (Supabase.instance.client.auth.currentUser == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('로그인 후 다시 초대 링크를 눌러주세요!')));
       return;
     }
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -105,11 +111,8 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _routeUser(String userId) async {
     try {
-      final userData = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
+      // 🌟 DB 직접 조회를 레포지토리로 완벽하게 대체!
+      final userData = await _userRepo.fetchMyGlobalProfile();
 
       if (mounted) {
         setState(() {
@@ -160,8 +163,10 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _globalProfileImageUrl;
+  bool _isBirthdayPublic = true;
 
-  bool _isBirthdayPublic = true; // 🌟 생일 공개 여부 변수 추가!
+  final _userRepo = UserRepository(); // 🌟 레포지토리
+  final _groupRepo = GroupRepository(); // 🌟 레포지토리
 
   @override
   void initState() {
@@ -177,55 +182,48 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
 
   Future<void> _loadGlobalProfile() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-      final data = await Supabase.instance.client
-          .from('users')
-          .select('display_name, profile_image_url')
-          .eq('id', userId)
-          .single();
-      setState(() {
-        _nicknameController.text = data['display_name'] ?? '';
-        _globalProfileImageUrl = data['profile_image_url'];
-        _isLoading = false;
-      });
+      // 🌟 DB 찌꺼기를 날리고 레포지토리에서 우아하게 Model을 받아옵니다.
+      final profile = await _userRepo.fetchMyGlobalProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _nicknameController.text = profile.displayName;
+          _globalProfileImageUrl = profile.profileImageUrl;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // 2. 모임 멤버로 저장하기!
   Future<void> _joinGroup() async {
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) return;
 
     setState(() => _isSaving = true);
     try {
-      final user = Supabase.instance.client.auth.currentUser!;
-
-      // group_members 테이블에 프사 정보까지 싹 담아서 인서트!
-      await Supabase.instance.client.from('group_members').insert({
-        'group_id': widget.groupId,
-        'user_id': user.id,
-        'role': 'member',
-        'display_name': nickname,
-        'profile_image_url': _globalProfileImageUrl, // 모임별 프로필 프사 적용
-      });
+      // 🌟 가입 로직도 레포지토리에게 위임!
+      await _groupRepo.joinGroup(
+        groupId: widget.groupId,
+        nickname: nickname,
+        profileImageUrl: _globalProfileImageUrl,
+      );
 
       if (mounted) {
-        Navigator.pop(context); // 시트 닫기
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('🎉 ${widget.groupName} 모임에 가입되었습니다!'),
-            backgroundColor: const Color(0xFFFF8A80),
+            backgroundColor: AppConstants.primaryColor, // 🌟 하드코딩 제거
           ),
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미 가입된 모임이거나 에러가 발생했습니다.')),
         );
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -233,7 +231,7 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom; // 키보드 올라오는 높이
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       decoration: const BoxDecoration(
@@ -250,9 +248,11 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
           ? const SizedBox(
               height: 200,
               child: Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+                child: CircularProgressIndicator(
+                  color: AppConstants.primaryColor,
+                ),
               ),
-            )
+            ) // 🌟 하드코딩 제거
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -265,7 +265,6 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 Text(
                   '💌 ${widget.groupName}',
                   style: TextStyle(
@@ -281,7 +280,6 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
                 ),
                 const SizedBox(height: 32),
 
-                // 글로벌 프로필 사진을 띄워줌
                 CircleAvatar(
                   radius: 48,
                   backgroundColor: Colors.grey[100],
@@ -298,7 +296,6 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
                 ),
                 const SizedBox(height: 24),
 
-                // 닉네임 수정 가능하게 텍스트 필드 제공
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -307,25 +304,14 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextField(
+
+                // 🌟 길었던 TextField 코드를 우리가 만든 CustomTextField로 1줄 컷!
+                CustomTextField(
                   controller: _nicknameController,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                        color: Color(0xFFFF8A80),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
+                  hint: '예: 모락대장',
                 ),
                 const SizedBox(height: 16),
+
                 Row(
                   children: [
                     SizedBox(
@@ -335,9 +321,9 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
                         value: _isBirthdayPublic,
                         onChanged: (val) =>
                             setState(() => _isBirthdayPublic = val ?? true),
-                        activeColor: const Color(0xFFFF8A80),
+                        activeColor: AppConstants.primaryColor,
                       ),
-                    ),
+                    ), // 🌟 하드코딩 제거
                     const SizedBox(width: 8),
                     const Text(
                       '이 모임에 내 생일 공개하기 🎂',
@@ -346,18 +332,19 @@ class _GroupJoinSheetState extends State<_GroupJoinSheet> {
                   ],
                 ),
                 const SizedBox(height: 32),
+
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _joinGroup,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF8A80),
+                      backgroundColor: AppConstants.primaryColor,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
+                    ), // 🌟 하드코딩 제거
                     child: _isSaving
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(

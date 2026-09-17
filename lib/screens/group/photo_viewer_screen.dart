@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../models/meetup_model.dart';
 import '../../models/member_model.dart';
@@ -70,17 +71,23 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                 return InteractiveViewer(
                   minScale: 1.0,
                   maxScale: 4.0,
-                  child: Image.network(
-                    widget.imageUrls[index],
+                  child: CachedNetworkImage(
+                    imageUrl: widget.imageUrls[index],
                     fit: BoxFit.contain,
                     width: double.infinity,
                     height: double.infinity,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFF8A80),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.error),
                   ),
                 );
               },
             ),
           ),
-
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,

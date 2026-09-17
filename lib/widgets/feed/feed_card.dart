@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/color_utils.dart';
 import '../../models/meetup_model.dart';
@@ -115,11 +116,16 @@ class FeedCard extends StatelessWidget {
 
           // 💡 메인 사진
           if (imageUrl != null)
-            Image.network(
-              imageUrl,
+            CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
               width: double.infinity,
               height: 300,
-              fit: BoxFit.cover,
+              placeholder: (context, url) => const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFF8A80)),
+              ), // 로딩 중 띄워줄 위젯
+              errorWidget: (context, url, error) =>
+                  const Icon(Icons.error), // 에러 시 띄워줄 위젯
             ),
 
           // 💡 텍스트 본문 (장소 & 메뉴)

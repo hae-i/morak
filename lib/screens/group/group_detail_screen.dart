@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/color_utils.dart';
 import '../../repositories/group_repository.dart';
@@ -859,7 +860,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(imageUrls[index], fit: BoxFit.cover),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrls[index],
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFF8A80),
+                        ),
+                      ), // 로딩 중 띄워줄 위젯
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.error), // 에러 시 띄워줄 위젯
+                    ),
                   ),
                 );
               },

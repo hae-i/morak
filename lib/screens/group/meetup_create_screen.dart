@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_widgets.dart';
@@ -244,7 +245,17 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(13),
                 child: item is String
-                    ? Image.network(item, fit: BoxFit.cover)
+                    ? CachedNetworkImage(
+                        imageUrl: item,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFFF8A80),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
+                      )
                     : (kIsWeb
                           ? Image.network(
                               (item as XFile).path,

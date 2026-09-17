@@ -277,4 +277,22 @@ class GroupRepository {
         })
         .eq('id', memberId);
   }
+
+  // 🌟 초대 링크를 타고 모임에 새 멤버로 가입하기
+  Future<void> joinGroup({
+    required String groupId,
+    required String nickname,
+    String? profileImageUrl,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw '로그인 정보가 없습니다.';
+
+    await _client.from('group_members').insert({
+      'group_id': groupId,
+      'user_id': user.id,
+      'role': 'member',
+      'display_name': nickname,
+      'profile_image_url': profileImageUrl,
+    });
+  }
 }

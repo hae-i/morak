@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
+import '../../constants/app_constants.dart';
 
 // 🌟 1. 공통 소제목 (Section Title)
 class SectionTitle extends StatelessWidget {
@@ -52,7 +55,10 @@ class CustomTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFFF8A80), width: 1.5),
+          borderSide: const BorderSide(
+            color: AppConstants.primaryColor,
+            width: 1.5,
+          ),
         ),
       ),
     );
@@ -82,7 +88,7 @@ class EditableAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasImage = localImage != null || networkImageUrl != null;
+    // 🗑️ 안 쓰던 찌꺼기 변수(hasImage) 삭제 완료!
 
     return GestureDetector(
       onTap: onTap,
@@ -99,14 +105,27 @@ class EditableAvatar extends StatelessWidget {
             child: localImage != null
                 ? ClipOval(
                     child: kIsWeb
-                        ? Image.network(localImage!.path, fit: BoxFit.cover)
+                        ? Image.network(
+                            localImage!.path,
+                            fit: BoxFit.cover,
+                          ) // 로컬 이미지 미리보기는 그대로!
                         : Image.file(File(localImage!.path), fit: BoxFit.cover),
                   )
                 : (networkImageUrl != null
                       ? ClipOval(
-                          child: Image.network(
-                            networkImageUrl!,
+                          // 🌟 드디어 CachedNetworkImage 출격! 이제 앱 껐다 켜도 프사가 바로 뜹니다!
+                          child: CachedNetworkImage(
+                            imageUrl: networkImageUrl!,
                             fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                                const CircularProgressIndicator(
+                                  color: AppConstants.primaryColor,
+                                ),
+                            errorWidget: (context, url, error) => Icon(
+                              fallbackIcon,
+                              size: radius * 0.8,
+                              color: Colors.grey[400],
+                            ),
                           ),
                         )
                       : (emoji != null
@@ -128,7 +147,7 @@ class EditableAvatar extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(radius * 0.15),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF8A80),
+                color: AppConstants.primaryColor,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
