@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/ui_utils.dart';
 import '../../models/user_model.dart';
@@ -51,7 +52,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     final birthday = _myProfile?.birthday;
 
     return Scaffold(
-      backgroundColor: Colors.white, // 🌟 순백색 배경
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           '마이페이지 👤',
@@ -68,13 +69,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          // 🌟 뚱뚱한 그림자 대신 얇고 깔끔한 테두리로 다이어트
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFEEEEEE)), // 얇은 테두리
+              border: Border.all(color: const Color(0xFFEEEEEE)),
             ),
             child: Row(
               children: [
@@ -164,7 +164,23 @@ class _MyPageScreenState extends State<MyPageScreen> {
             '알림 설정',
             onTap: () {},
           ),
-          _buildMenuTile(Icons.lock_outline_rounded, '개인정보 보호', onTap: () {}),
+          _buildMenuTile(
+            Icons.lock_outline_rounded,
+            '개인정보 보호',
+            onTap: () async {
+              final url = Uri.parse('https://morak.app/privacy.html');
+
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('웹페이지를 열 수 없습니다.')),
+                  );
+                }
+              }
+            },
+          ),
           _buildMenuTile(
             Icons.help_outline_rounded,
             '고객센터 / 피드백',
@@ -192,9 +208,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFF0F0F0),
-        ), // 🌟 메뉴 타일도 얇은 테두리로 분리
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: ListTile(
         leading: Icon(

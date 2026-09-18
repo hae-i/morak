@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (kIsWeb) {
         await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: 'http://localhost:3000',
+          redirectTo: 'http://morak.app',
           queryParams: {'prompt': 'select_account'},
         );
       } else {

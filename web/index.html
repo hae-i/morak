@@ -1,46 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+    <base href="$FLUTTER_BASE_HREF">
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
+    <meta charset="UTF-8">
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible">
 
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+    <!-- 🌟 1. 이 부분들을 지은 님 앱에 맞게 수정합니다! (검색엔진, 카톡 공유 시 나타남) -->
+    <meta name="description" content="우리들의 프라이빗 모임 & 만남 기록, 모락(Morak) ☁️">
+    <meta name="keywords" content="모임, 일정, 사진첩, 커뮤니티, 모락">
 
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
+    <!-- iOS 홈 화면에 추가할 때 아이콘 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="모락">
+    <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+    <!-- 파비콘 (브라우저 탭 아이콘) -->
+    <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="morak">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+    <!-- 🌟 2. 탭에 표시될 이름! -->
+    <title>모락(Morak)</title>
+    <link rel="manifest" href="manifest.json">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>morak</title>
-  <link rel="manifest" href="manifest.json">
+    <!-- 🚨 절대 지우면 안 되는 플러터 핵심 스크립트 🚨 -->
+    <script>
+        window.addEventListener('load', function(ev) {
+          // 플러터 앱을 로드하고 실행하는 스크립트
+          _flutter.loader.loadEntrypoint({
+            serviceWorker: {
+              serviceWorkerVersion: serviceWorkerVersion,
+            },
+            onEntrypointLoaded: function(engineInitializer) {
+              engineInitializer.initializeEngine().then(function(appRunner) {
+                appRunner.runApp();
+              });
+            }
+          });
+        });
+    </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+<!-- 여기에 로딩 스피너 같은 CSS 애니메이션을 넣기도 하는데, 지금은 비워둬도 앱은 정상 작동합니다! -->
+<script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
