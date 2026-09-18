@@ -1,22 +1,22 @@
 class UserModel {
   final String id;
   final String displayName;
-  final String role; // 'host' or 'member'
   final String? profileImageUrl;
+  final String? birthday;
 
   UserModel({
     required this.id,
     required this.displayName,
-    required this.role,
     this.profileImageUrl,
+    this.birthday,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['user_id']?.toString() ?? '',
+      id: json['id']?.toString() ?? '',
       displayName: json['display_name'] ?? '알 수 없음',
-      role: json['role'] ?? 'member',
       profileImageUrl: json['profile_image_url'],
+      birthday: json['birthday'],
     );
   }
 }

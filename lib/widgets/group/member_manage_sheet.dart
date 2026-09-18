@@ -24,19 +24,41 @@ class MemberManageSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('$memberName 관리', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              '$memberName 관리',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
             const SizedBox(height: 24),
             ListTile(
-              leading: const Icon(Icons.swap_horiz_rounded),
-              title: Text(role == 'host' ? '일반 멤버로 강등' : '방장 권한 부여'),
+              leading: const Icon(
+                Icons.swap_horiz_rounded,
+                color: Colors.black87,
+              ),
+              title: Text(
+                role == 'host' ? '일반 멤버로 강등' : '방장 권한 부여',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 onChangeRole();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person_remove_rounded, color: Colors.redAccent),
-              title: const Text('모임에서 내보내기', style: TextStyle(color: Colors.redAccent)),
+              leading: const Icon(
+                Icons.person_remove_rounded,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                '모임에서 내보내기',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 onKick();

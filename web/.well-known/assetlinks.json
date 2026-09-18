@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.andan.morak",
+    "sha256_cert_fingerprints": [
+      "C4:5C:62:44:C4:16:FE:A0:C3:E9:5A:2F:45:19:11:F2:85:D7:92:8A:E2:09:AF:23:60:C4:2C:61:FB:0A:D8:E3"
+    ]
+  }
+}]

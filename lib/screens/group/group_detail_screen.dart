@@ -1,45 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/color_utils.dart';
+import '../../locator.dart';
 import '../../repositories/group_repository.dart';
-import '../../constants/app_constants.dart';
-import '../../widgets/profile_setup_sheet.dart';
+import '../../models/group_model.dart';
+import '../../models/meetup_model.dart';
+import '../../models/member_model.dart';
+import '../../utils/invite_helper.dart';
 import 'meetup_create_screen.dart';
+import 'meetup_detail_screen.dart';
+import 'group_info_screen.dart';
+import 'photo_viewer_screen.dart';
+import '../../widgets/group/member_drawer.dart';
+import '../../widgets/group/group_edit_sheets.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
-  final String groupName;
-  const GroupDetailScreen({
-    super.key,
-    required this.groupId,
-    required this.groupName,
-  });
+  const GroupDetailScreen({super.key, required this.groupId});
   @override
   State<GroupDetailScreen> createState() => _GroupDetailScreenState();
 }
 
 class _GroupDetailScreenState extends State<GroupDetailScreen>
     with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late TabController _tabController;
-  bool _isListView = true;
+
   bool _isLoading = true;
+  GroupModel? _group;
+  List<MeetupModel> _meetups = [];
+  List<MemberModel> _rankedMembers = [];
+  List<String> _allAlbumPhotos = [];
 
-  late String _currentGroupName;
-  String? _currentCoverColor;
-  String? _currentEmoji;
-
-  List<Map<String, dynamic>> _meetups = [];
-  List<Map<String, dynamic>> _members = [];
-  List<Map<String, dynamic>> _rankedMembers = [];
-
-  // 🌟 리팩토링 된 레포지토리 사용!
-  final _repository = GroupRepository();
+  final _groupRepo = locator<GroupRepository>();
 
   @override
   void initState() {
     super.initState();
-    _currentGroupName = widget.groupName;
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() => setState(() {}));
     _loadAllData();
@@ -51,927 +52,715 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     super.dispose();
   }
 
-  Future<void> _loadAllData() async {
-    setState(() => _isLoading = true);
+  // 🌟 isSilentRefresh 가 true면 로딩 화면을 안 띄움!
+  Future<void> _loadAllData({bool isSilentRefresh = false}) async {
+    if (!isSilentRefresh) {
+      setState(() => _isLoading = true); // 처음 들어올 때만 로딩 켜기
+    }
+
     try {
-      final client = Supabase.instance.client;
-      final groupRes = await client
-          .from('groups')
-          .select()
-          .eq('id', widget.groupId)
-          .single();
-      final meetupsRes = await client
-          .from('meetups')
-          .select('*, attendances(member_id)')
-          .eq('group_id', widget.groupId)
-          .order('meet_date', ascending: false);
-
-      // 🌟 핵심 수정: created_at -> joined_at 으로 변경!
-      final membersRes = await client
-          .from('group_members')
-          .select()
-          .eq('group_id', widget.groupId)
-          .order('joined_at', ascending: true);
-
-      int totalMeetups = meetupsRes.length;
-      Map<String, int> attendanceCounts = {};
-      for (var meetup in meetupsRes) {
-        for (var att in meetup['attendances'] as List? ?? []) {
-          String mId = att['member_id'].toString();
-          attendanceCounts[mId] = (attendanceCounts[mId] ?? 0) + 1;
-        }
-      }
-
-      List<Map<String, dynamic>> ranked = [];
-      for (var m in membersRes) {
-        String mId = m['id'].toString();
-        int attended = attendanceCounts[mId] ?? 0;
-        ranked.add({
-          ...m,
-          'attended_count': attended,
-          'attendance_rate': totalMeetups > 0
-              ? (attended / totalMeetups) * 100
-              : 0.0,
-        });
-      }
-      ranked.sort((a, b) {
-        int r = b['attendance_rate'].compareTo(a['attendance_rate']);
-        return r != 0 ? r : a['display_name'].compareTo(b['display_name']);
-      });
-
+      final data = await _groupRepo.fetchGroupDetailWithRanking(widget.groupId);
       if (mounted) {
         setState(() {
-          _currentGroupName = groupRes['name'];
-          _currentCoverColor = groupRes['theme_color'];
-          _currentEmoji = groupRes['theme_emoji'];
-          _meetups = List<Map<String, dynamic>>.from(meetupsRes);
-          _members = List<Map<String, dynamic>>.from(membersRes);
-          _rankedMembers = ranked;
-          _isLoading = false;
+          _group = data['group'];
+          _meetups = data['meetups'];
+          _rankedMembers = data['rankedMembers'];
+          _allAlbumPhotos.clear();
+          for (var meetup in _meetups) {
+            _allAlbumPhotos.addAll(meetup.photos);
+          }
+          _isLoading = false; // 끝나면 끄기
         });
       }
     } catch (e) {
-      // 🌟 숨겨진 에러를 밖으로 꺼내서 스낵바로 보여줍니다!
-      debugPrint('상세화면 로드 에러: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('데이터를 불러오지 못했습니다: $e')));
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _showEditGroupSheet() async {
-    final currentColorValue =
-        int.tryParse(_currentCoverColor ?? '') ?? Colors.grey[200]!.value;
-    int? initialIndex;
-    for (int i = 0; i < AppConstants.themeColors.length; i++) {
-      if (AppConstants.themeColors[i].value == currentColorValue) {
-        initialIndex = i;
-        break;
-      }
-    }
-
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+  void _openMyProfileEditSheet(MemberModel memberData) {
+    Navigator.pop(context);
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => GroupProfileEditSheet(
+        memberData: memberData,
+        repository: _groupRepo,
+        onUpdated: _loadAllData,
+      ),
+    );
+  }
+
+  void _showMemberProfileSheet(MemberModel member) {
+    final bool isHost = member.role == 'host';
+    final bool isMe =
+        member.userId == (Supabase.instance.client.auth.currentUser?.id ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => ProfileSetupSheet(
-        initialEmoji: _currentEmoji,
-        initialColorIndex: initialIndex,
-      ),
-    );
-
-    if (result != null) {
-      setState(() => _isLoading = true);
-      try {
-        final newEmoji = result['emoji'];
-        final newColorIndex = result['colorIndex'];
-        final newColorValue = newColorIndex != null
-            ? AppConstants.themeColors[newColorIndex].value.toString()
-            : Colors.grey[200]!.value.toString();
-
-        await _repository.updateGroup(
-          widget.groupId,
-          _currentGroupName,
-          newColorValue,
-          newEmoji,
-        );
-        await _loadAllData();
-      } catch (e) {
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('수정 실패: $e')));
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _deleteGroup() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          '모임 삭제',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (isMe)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    icon: Icon(Icons.settings_rounded, color: Colors.grey[500]),
+                    onPressed: () => _openMyProfileEditSheet(member),
+                    tooltip: '프로필 수정',
+                  ),
+                )
+              else
+                const SizedBox(height: 24),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.grey[100],
+                    backgroundImage: member.profileImageUrl != null
+                        ? NetworkImage(member.profileImageUrl!)
+                        : null,
+                    child: member.profileImageUrl == null
+                        ? Icon(
+                            Icons.person_rounded,
+                            size: 36,
+                            color: Colors.grey[400],
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            if (isHost)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 6),
+                                child: Text(
+                                  '👑',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            Flexible(
+                              child: Text(
+                                member.displayName + (isMe ? ' (나)' : ''),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          (member.isBirthdayPublic && member.birthday != null)
+                              ? '🎂 생일: ${member.birthday!.replaceAll('-', '. ')}'
+                              : (isHost ? '모임 방장' : '일반 멤버'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // 🌟 미니멀하고 플랫한 통계 박스
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        const Text(
+                          '참여한 만남',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${member.attendedCount}회',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(width: 1, height: 24, color: Colors.grey[200]),
+                    Column(
+                      children: [
+                        const Text(
+                          '참석률',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${member.attendanceRate.toInt()}%',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        content: const Text('정말 삭제할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
-          ),
-        ],
       ),
     );
-    if (confirm == true) {
-      await _repository.deleteGroup(widget.groupId); // 레포지토리 사용!
-      if (mounted) Navigator.pop(context, true);
-    }
   }
 
-  Future<void> _deleteMeetup(String meetupId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('기록 삭제'),
-        content: const Text('삭제할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await Supabase.instance.client
-          .from('meetups')
-          .delete()
-          .eq('id', meetupId);
-      _loadAllData();
-    }
-  }
-
-  String _formatDate(String? rawDate) {
-    if (rawDate == null) return '';
+  String _formatDate(String date) {
     try {
-      final dt = DateTime.parse(rawDate);
-      return '${dt.year}. ${dt.month.toString().padLeft(2, '0')}. ${dt.day.toString().padLeft(2, '0')}';
+      final dt = DateTime.parse(date);
+      return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
     } catch (_) {
-      return rawDate;
-    }
-  }
-
-  String _formatShortDate(String? rawDate) {
-    if (rawDate == null) return '';
-    try {
-      final dt = DateTime.parse(rawDate);
-      return '${dt.month}.${dt.day}';
-    } catch (_) {
-      return '';
+      return date;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 리팩토링된 ColorUtils 활용!
-    final activeColor = ColorUtils.stringToColor(_currentCoverColor);
-    final isDefaultColor = activeColor == Colors.grey[200]!;
-    final lastMeetupDate = _meetups.isNotEmpty
-        ? _formatDate(_meetups.first['meet_date'])
-        : '아직 기록 없음';
-
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(_currentGroupName),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            onSelected: (value) {
-              if (value == 'edit') _showEditGroupSheet();
-              if (value == 'delete') _deleteGroup();
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('모임 정보 수정')),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('모임 삭제하기', style: TextStyle(color: Colors.red)),
-              ),
-            ],
+    if (_isLoading || _group == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Colors.black87,
+            strokeWidth: 2,
           ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: isDefaultColor ? Colors.grey[800] : activeColor,
+        ),
+      );
+    }
+
+    final activeColor = ColorUtils.stringToColor(_group!.themeColor);
+    final isDefaultColor = activeColor == Colors.grey[200]!;
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
+
+    final memberDrawerWidget = MemberDrawer(
+      groupId: _group!.id,
+      groupName: _group!.name,
+      members: _rankedMembers,
+      activeColor: activeColor,
+      isDefaultColor: isDefaultColor,
+      onMembersUpdated: _loadAllData,
+      repository: _groupRepo,
+      onMemberTap: _showMemberProfileSheet,
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) Navigator.pop(context, true);
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: Colors.white, // 🌟 배경을 깔끔한 순백색으로 통일하여 답답함 해소!
+        endDrawer: isWideScreen ? null : memberDrawerWidget,
+
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: Colors.black87,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+          title: Text(
+            _group!.name,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(
+                Icons.share_outlined,
+                size: 20,
+                color: Colors.black87,
               ),
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: isDefaultColor
-                              ? Colors.grey[200]
-                              : activeColor.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child:
-                              (_currentEmoji != null &&
-                                  _currentEmoji!.isNotEmpty)
-                              ? Text(
-                                  _currentEmoji!,
-                                  style: const TextStyle(fontSize: 36),
-                                )
-                              : Icon(
-                                  Icons.groups_rounded,
-                                  color: isDefaultColor
-                                      ? Colors.grey[400]
-                                      : activeColor,
-                                  size: 36,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  '${_meetups.length}',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '만남',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  '${_members.length}',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '멤버',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+              onPressed: () {
+                InviteHelper.copyInviteLink(
+                  context: context,
+                  groupId: _group!.id,
+                );
+              },
+            ),
+          ],
+        ),
+
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  _buildHeaderInfo(activeColor, isDefaultColor),
+                  const SizedBox(height: 8),
+
+                  // 🌟 탭바를 아주 심플하게 다이어트
+                  TabBar(
+                    controller: _tabController,
+                    indicatorColor: Colors.black87,
+                    indicatorWeight: 2,
+                    labelColor: Colors.black87,
+                    unselectedLabelColor: Colors.grey[400],
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    tabs: const [
+                      Tab(text: '만남 기록'),
+                      Tab(text: '사진첩'),
                     ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '최근 만남: $lastMeetupDate',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildMeetupTab(activeColor, isDefaultColor),
+                        _buildAlbumTab(activeColor, isDefaultColor),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: isDefaultColor
-                      ? Colors.grey[800]
-                      : activeColor,
-                  labelColor: Colors.grey[800],
-                  unselectedLabelColor: Colors.grey[400],
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                  tabs: const [
-                    Tab(text: '만남 기록'),
-                    Tab(text: '랭킹 보드 👑'),
-                  ],
-                ),
-
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      RefreshIndicator(
-                        color: isDefaultColor ? Colors.grey[800] : activeColor,
-                        onRefresh: _loadAllData,
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                right: 16.0,
-                                top: 8.0,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.format_list_bulleted_rounded,
-                                    ),
-                                    color: _isListView
-                                        ? (isDefaultColor
-                                              ? Colors.grey[800]
-                                              : activeColor)
-                                        : Colors.grey[300],
-                                    onPressed: () =>
-                                        setState(() => _isListView = true),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.grid_view_rounded),
-                                    color: !_isListView
-                                        ? (isDefaultColor
-                                              ? Colors.grey[800]
-                                              : activeColor)
-                                        : Colors.grey[300],
-                                    onPressed: () =>
-                                        setState(() => _isListView = false),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: _meetups.isEmpty
-                                  ? Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.edit_calendar_rounded,
-                                            size: 56,
-                                            color: Colors.grey[300],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            '아직 기록이 없어요!',
-                                            style: TextStyle(
-                                              color: Colors.grey[500],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : (_isListView
-                                        ? _buildListView(
-                                            activeColor,
-                                            isDefaultColor,
-                                          )
-                                        : _buildAlbumView(
-                                            activeColor,
-                                            isDefaultColor,
-                                          )),
-                            ),
-                          ],
-                        ),
-                      ),
-                      RefreshIndicator(
-                        color: isDefaultColor ? Colors.grey[800] : activeColor,
-                        onRefresh: _loadAllData,
-                        child: _rankedMembers.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.people_alt_outlined,
-                                      size: 56,
-                                      color: Colors.grey[300],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      '멤버가 없어요!',
-                                      style: TextStyle(color: Colors.grey[500]),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 16,
-                                ),
-                                itemCount: _rankedMembers.length,
-                                itemBuilder: (context, index) {
-                                  final member = _rankedMembers[index];
-                                  final rate =
-                                      member['attendance_rate'] as double;
-                                  final attended =
-                                      member['attended_count'] as int;
-                                  final isFirstPlace =
-                                      index == 0 && attended > 0;
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.02),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 24,
-                                          backgroundColor: isFirstPlace
-                                              ? const Color(0xFFFFD54F)
-                                                    .withOpacity(0.2)
-                                              : (isDefaultColor
-                                                    ? Colors.grey[100]
-                                                    : activeColor.withOpacity(
-                                                        0.1,
-                                                      )),
-                                          child: Text(
-                                            isFirstPlace
-                                                ? '👑'
-                                                : member['display_name'][0],
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              color: isFirstPlace
-                                                  ? Colors.orange[700]
-                                                  : (isDefaultColor
-                                                        ? Colors.grey[800]
-                                                        : activeColor),
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Text(
-                                            member['display_name'],
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              '${rate.toInt()}%',
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w900,
-                                                color: isFirstPlace
-                                                    ? (isDefaultColor
-                                                          ? Colors.grey[800]
-                                                          : activeColor)
-                                                    : Colors.grey[700],
-                                              ),
-                                            ),
-                                            Text(
-                                              '$attended / ${_meetups.length}회',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[400],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              backgroundColor: isDefaultColor ? Colors.grey[800] : activeColor,
-              elevation: 4,
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        MeetupCreateScreen(groupId: widget.groupId),
-                  ),
-                );
-                if (result == true) _loadAllData();
-              },
-              icon: Icon(
-                Icons.edit_rounded,
-                color: isDefaultColor
-                    ? Colors.white
-                    : ColorUtils.getTextColor(activeColor),
-              ),
-              label: Text(
-                '기록 남기기',
-                style: TextStyle(
-                  color: isDefaultColor
-                      ? Colors.white
-                      : ColorUtils.getTextColor(activeColor),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            )
-          : FloatingActionButton.extended(
-              backgroundColor: Colors.grey[800],
-              elevation: 4,
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => _MemberManageSheet(
-                    groupId: widget.groupId,
-                    members: _members,
-                    onMembersUpdated: _loadAllData,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.person_add_rounded, color: Colors.white),
-              label: const Text(
-                '멤버 영입',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                ],
               ),
             ),
+
+            if (isWideScreen) ...[
+              const VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: Color(0xFFEEEEEE),
+              ),
+              SizedBox(width: 300, child: memberDrawerWidget),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildListView(Color activeColor, bool isDefaultColor) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      itemCount: _meetups.length,
-      itemBuilder: (context, index) {
-        final item = _meetups[index];
-        final title = [
-          item['location'] ?? '',
-          item['menu'] ?? '',
-        ].where((s) => s.toString().isNotEmpty).join(' · ');
-        final attendeeCount = (item['attendances'] as List?)?.length ?? 0;
+  // 🌟 상단 대형 배너: 뚱뚱한 박스 느낌을 없애고 세련된 카드형으로 개선
+  Widget _buildHeaderInfo(Color activeColor, bool isDefaultColor) {
+    final bool hasCover = _group!.coverImageUrl != null;
+    final bool hasLogo = _group!.logoImageUrl != null;
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: hasCover
+              ? Colors.black
+              : (isDefaultColor
+                    ? Colors.grey[150]
+                    : activeColor.withOpacity(0.12)),
+          borderRadius: BorderRadius.circular(20),
+          image: hasCover
+              ? DecorationImage(
+                  image: NetworkImage(_group!.coverImageUrl!),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(20),
+            gradient: hasCover
+                ? const LinearGradient(
+                    colors: [Colors.black45, Colors.black45],
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
+                  )
+                : null,
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: isDefaultColor
-                      ? Colors.grey[100]
-                      : activeColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.restaurant_rounded,
-                  color: isDefaultColor ? Colors.grey[400] : activeColor,
+              GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GroupInfoScreen(groupData: _group!),
+                    ),
+                  );
+                  if (result == 'deleted') {
+                    if (mounted) Navigator.pop(context, true);
+                  } else if (result == 'updated') {
+                    _loadAllData();
+                  }
+                },
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    image: hasLogo
+                        ? DecorationImage(
+                            image: NetworkImage(_group!.logoImageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: hasLogo
+                      ? null
+                      : Center(
+                          child:
+                              (_group!.themeEmoji != null &&
+                                  _group!.themeEmoji!.isNotEmpty)
+                              ? Text(
+                                  _group!.themeEmoji!,
+                                  style: const TextStyle(fontSize: 26),
+                                )
+                              : Icon(
+                                  Icons.groups_rounded,
+                                  color: activeColor,
+                                  size: 26,
+                                ),
+                        ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Text(
-                      _formatDate(item['meet_date']),
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      title.isNotEmpty ? title : '기록 내용 없음',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    if (attendeeCount > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDefaultColor
-                              ? Colors.grey[100]
-                              : activeColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '👥 참석 $attendeeCount명',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[800],
-                            fontWeight: FontWeight.bold,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _tabController.animateTo(0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${_meetups.length}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: hasCover ? Colors.white : Colors.black87,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '만남 기록',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasCover
+                                  ? Colors.white70
+                                  : Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 24,
+                      color: hasCover ? Colors.white24 : Colors.grey[300],
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (!isWideScreen)
+                          _scaffoldKey.currentState?.openEndDrawer();
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${_rankedMembers.length}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: hasCover ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '모임 멤버',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasCover
+                                  ? Colors.white70
+                                  : Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: Colors.grey,
-                  size: 20,
-                ),
-                onSelected: (v) async {
-                  if (v == 'edit') {
-                    final r = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MeetupCreateScreen(
-                          groupId: widget.groupId,
-                          initialMeetup: item,
-                        ),
-                      ),
-                    );
-                    if (r == true) _loadAllData();
-                  } else if (v == 'delete')
-                    _deleteMeetup(item['id']);
-                },
-                itemBuilder: (c) => [
-                  const PopupMenuItem(value: 'edit', child: Text('수정하기')),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('삭제하기', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildAlbumView(Color activeColor, bool isDefaultColor) {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: _meetups.length,
-      itemBuilder: (context, index) {
-        final item = _meetups[index];
-        return InkWell(
-          onLongPress: () => _deleteMeetup(item['id']),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDefaultColor
-                  ? Colors.grey[200]
-                  : activeColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.bottomRight,
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              _formatShortDate(item['meet_date']),
-              style: TextStyle(
-                color: isDefaultColor ? Colors.grey[800] : activeColor,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MemberManageSheet extends StatefulWidget {
-  final String groupId;
-  final List<Map<String, dynamic>> members;
-  final VoidCallback onMembersUpdated;
-
-  const _MemberManageSheet({
-    required this.groupId,
-    required this.members,
-    required this.onMembersUpdated,
-  });
-
-  @override
-  State<_MemberManageSheet> createState() => _MemberManageSheetState();
-}
-
-class _MemberManageSheetState extends State<_MemberManageSheet> {
-  final TextEditingController _nameController = TextEditingController();
-  bool _isSaving = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addMember() async {
-    if (_nameController.text.trim().isEmpty) return;
-    setState(() => _isSaving = true);
-    try {
-      await Supabase.instance.client.from('group_members').insert({
-        'group_id': widget.groupId,
-        'display_name': _nameController.text.trim(),
-      });
-      _nameController.clear();
-      widget.onMembersUpdated();
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('에러: $e')));
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _removeMember(String id) async {
-    try {
-      await Supabase.instance.client
-          .from('group_members')
-          .delete()
-          .eq('id', id);
-      widget.onMembersUpdated();
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('에러: $e')));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: bottomInset > 0 ? bottomInset : 24,
-        top: 24,
-      ),
+  Widget _buildMeetupTab(Color activeColor, bool isDefaultColor) {
+    return RefreshIndicator(
+      color: Colors.black87,
+      onRefresh: () => _loadAllData(isSilentRefresh: true),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            '멤버 관리',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      hintText: '새로운 멤버 이름',
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onSubmitted: (_) => _addMember(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                _isSaving
-                    ? const CircularProgressIndicator(color: Colors.grey)
-                    : IconButton(
-                        onPressed: _addMember,
-                        icon: const Icon(Icons.person_add_rounded),
-                        color: Colors.grey[800],
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.grey[200],
+          Expanded(
+            child: _meetups.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.edit_calendar_rounded,
+                          size: 48,
+                          color: Colors.grey[300],
                         ),
-                      ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.4,
-            ),
-            child: widget.members.isEmpty
-                ? const Center(child: Text('멤버가 없어요.'))
+                        const SizedBox(height: 12),
+                        const Text(
+                          '아직 남겨진 기록이 없어요.',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    MeetupCreateScreen(groupId: _group!.id),
+                              ),
+                            );
+                            if (result == true) _loadAllData();
+                          },
+                          child: const Text(
+                            '첫 만남 기록하기 +',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: 20,
+                      vertical: 12,
                     ),
-                    itemCount: widget.members.length,
+                    itemCount: _meetups.length + 1,
                     itemBuilder: (context, index) {
-                      final member = widget.members[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.grey[100],
-                          child: Text(
-                            member['display_name'][0],
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.bold,
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      MeetupCreateScreen(groupId: _group!.id),
+                                ),
+                              );
+                              if (result == true) _loadAllData();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.black87,
+                              side: const BorderSide(color: Color(0xFFE0E0E0)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              '+ 새로운 만남 기록하기',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          member['display_name'],
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.remove_circle_outline_rounded,
-                            color: Colors.grey,
+                        );
+                      }
+
+                      final meetup = _meetups[index - 1];
+                      final title = meetup.title ?? '제목 없는 만남';
+                      final subText = [
+                        meetup.location ?? '',
+                        meetup.menu ?? '',
+                      ].where((s) => s.isNotEmpty).join(' · ');
+                      final attendeeCount = meetup.attendanceMemberIds.length;
+                      final hasPhoto = meetup.photos.isNotEmpty;
+                      final bgImageUrl = hasPhoto ? meetup.photos.first : null;
+
+                      // 🌟 카드를 슬림하고 감성적으로 변경
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MeetupDetailScreen(
+                                meetup: meetup,
+                                groupMembers: _rankedMembers,
+                                activeColor: activeColor,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          height: 105, // 높이 줄임 (뚱뚱함 해소)
+                          decoration: BoxDecoration(
+                            color: hasPhoto ? Colors.black : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFF0F0F0),
+                            ), // 은은한 테두리
+                            image: hasPhoto
+                                ? DecorationImage(
+                                    image: NetworkImage(bgImageUrl!),
+                                    fit: BoxFit.cover,
+                                    colorFilter: ColorFilter.mode(
+                                      Colors.black.withOpacity(0.3),
+                                      BlendMode.darken,
+                                    ),
+                                  )
+                                : null,
                           ),
-                          onPressed: () => _removeMember(member['id']),
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _formatDate(meetup.date),
+                                      style: TextStyle(
+                                        color: hasPhoto
+                                            ? Colors.white70
+                                            : Colors.grey[400],
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      title,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: hasPhoto
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (subText.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          subText,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: hasPhoto
+                                                ? Colors.white70
+                                                : Colors.grey[500],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (attendeeCount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: hasPhoto
+                                        ? Colors.white24
+                                        : Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '👥 $attendeeCount',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: hasPhoto
+                                          ? Colors.white
+                                          : Colors.grey[700],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -979,6 +768,84 @@ class _MemberManageSheetState extends State<_MemberManageSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAlbumTab(Color activeColor, bool isDefaultColor) {
+    List<Map<String, dynamic>> albumData = [];
+    for (var meetup in _meetups) {
+      for (var photo in meetup.photos) {
+        albumData.add({'url': photo, 'meetup': meetup});
+      }
+    }
+    final imageUrls = albumData.map((e) => e['url'] as String).toList();
+
+    return RefreshIndicator(
+      color: Colors.black87,
+      onRefresh: () => _loadAllData(isSilentRefresh: true),
+      child: albumData.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.photo_library_outlined,
+                    size: 48,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '아직 등록된 사진이 없어요.',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            )
+          : MasonryGridView.count(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              itemCount: albumData.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PhotoViewerScreen(
+                        imageUrls: imageUrls,
+                        initialIndex: index,
+                        meetup: albumData[index]['meetup'],
+                        groupMembers: _rankedMembers,
+                        activeColor: activeColor,
+                      ),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      10,
+                    ), // 모서리 라운드 살짝 줄여서 세련되게
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrls[index],
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 120,
+                        color: Colors.grey[100],
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.error),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
