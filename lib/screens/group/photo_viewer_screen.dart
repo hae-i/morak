@@ -1,9 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
+import '../../services/private_photos.dart';
 
+import 'package:flutter/material.dart';
+
+import '../../constants/app_constants.dart';
 import '../../models/meetup_model.dart';
 import '../../models/member_model.dart';
 import 'meetup_detail_screen.dart';
+import '../../locator.dart';
+import '../../repositories/meetup_repository.dart';
+import '../../services/photo_saver.dart';
 
 class PhotoViewerScreen extends StatefulWidget {
   final List<String> imageUrls;
@@ -11,6 +17,8 @@ class PhotoViewerScreen extends StatefulWidget {
   final MeetupModel? meetup;
   final List<MemberModel> groupMembers;
   final Color activeColor;
+  final PhotoSaver? photoSaver;
+  final List<MeetupModel>? photoMeetups;
 
   const PhotoViewerScreen({
     super.key,
@@ -19,6 +27,8 @@ class PhotoViewerScreen extends StatefulWidget {
     this.meetup,
     required this.groupMembers,
     required this.activeColor,
+    this.photoSaver,
+    this.photoMeetups,
   });
 
   @override
@@ -29,11 +39,72 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
   late PageController _pageController;
   late int _currentIndex;
   bool _showBars = true;
+  bool _isOpeningRecord = false;
+  bool _isSavingPhoto = false;
+  // === 수정한 내용: 여러 기록의 사진을 넘긴 경우 현재 사진에 연결된 기록을 연다 ===
+  MeetupModel? get _currentMeetup =>
+      widget.photoMeetups != null && _currentIndex < widget.photoMeetups!.length
+      ? widget.photoMeetups![_currentIndex]
+      : widget.meetup;
+
+  // === 수정한 내용: 현재 사진을 실제 갤러리에 저장하고 중복 요청과 폐기된 화면의 메시지를 차단한다 ===
+  Future<void> _savePhoto() async {
+    if (_isSavingPhoto || widget.imageUrls.isEmpty) return;
+    final url = widget.imageUrls[_currentIndex];
+    setState(() => _isSavingPhoto = true);
+    try {
+      await (widget.photoSaver ?? PhotoSaver()).save(url);
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('갤러리에 사진을 저장했습니다.')));
+    } on PhotoSaveException catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _isSavingPhoto = false);
+    }
+  }
+
+  // === 수정한 내용: 사진 화면에서 기록을 다시 열 때 최신 값을 조회하여 편집 전 데이터의 재사용을 막는다 ===
+  Future<void> _openRecord() async {
+    final meetup = _currentMeetup;
+    if (_isOpeningRecord || meetup == null) return;
+    _isOpeningRecord = true;
+    try {
+      final latest = await locator<MeetupRepository>().fetchMeetup(meetup.id);
+      if (!mounted) return;
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MeetupDetailScreen(
+            meetup: latest,
+            groupMembers: widget.groupMembers,
+            activeColor: widget.activeColor,
+          ),
+        ),
+      );
+      // === 수정한 내용: 기존 뒤로가기 목적지를 유지하면서 기록 변경이 끝난 뒤 부모의 갱신을 이어 간다 ===
+      if (mounted) Navigator.pop(context, result);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('기록을 불러오지 못했습니다. 삭제 여부와 연결 상태를 확인해 주세요.'),
+          ),
+        );
+      }
+    } finally {
+      _isOpeningRecord = false;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _currentIndex = widget.imageUrls.isEmpty
+        ? 0
+        : widget.initialIndex.clamp(0, widget.imageUrls.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
   }
 
@@ -71,14 +142,14 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                 return InteractiveViewer(
                   minScale: 1.0,
                   maxScale: 4.0,
-                  child: CachedNetworkImage(
+                  child: PrivatePhotoImage(
                     imageUrl: widget.imageUrls[index],
                     fit: BoxFit.contain,
                     width: double.infinity,
                     height: double.infinity,
                     placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFFFF8A80),
+                        color: AppConstants.primaryColor,
                       ),
                     ),
                     errorWidget: (context, url, error) =>
@@ -113,7 +184,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    '${_currentIndex + 1} / ${widget.imageUrls.length}',
+                    '${widget.imageUrls.isEmpty ? 0 : _currentIndex + 1} / ${widget.imageUrls.length}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -147,20 +218,9 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (widget.meetup != null)
+                  if (_currentMeetup != null)
                     TextButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MeetupDetailScreen(
-                              meetup: widget.meetup!,
-                              groupMembers: widget.groupMembers,
-                              activeColor: widget.activeColor,
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: _openRecord,
                       icon: const Icon(
                         Icons.event_note_rounded,
                         color: Colors.white70,
@@ -189,22 +249,17 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                     const SizedBox.shrink(),
 
                   TextButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('갤러리에 사진을 저장했습니다! (다운로드 완료)'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    },
+                    onPressed: _isSavingPhoto || widget.imageUrls.isEmpty
+                        ? null
+                        : _savePhoto,
                     icon: const Icon(
                       Icons.file_download_outlined,
                       color: Colors.white,
                       size: 20,
                     ),
-                    label: const Text(
-                      '저장',
-                      style: TextStyle(
+                    label: Text(
+                      _isSavingPhoto ? '저장 중' : '저장',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,

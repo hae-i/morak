@@ -1,0 +1,5 @@
+// === 수정한 내용: 실제 iOS OAuth 발급값을 넣을 위치를 안내하고 샘플 값을 앱에 사용하지 않는다 ===
+// GoogleSignIn.xcconfig로 복사한 뒤 Google Console에서 받은 값을 넣으세요.
+// 두 값은 같은 iOS OAuth client와 앱 Bundle ID에 해당해야 합니다.
+GOOGLE_IOS_CLIENT_ID =
+GOOGLE_IOS_REVERSED_CLIENT_ID =

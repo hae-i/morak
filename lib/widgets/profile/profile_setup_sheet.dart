@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../services/image_selection_recovery.dart';
+
 import '../../constants/app_constants.dart';
 import '../../utils/color_utils.dart';
+import '../common/common_button.dart';
 
 @immutable
 class ProfileSetupResult {
@@ -18,6 +21,8 @@ class ProfileSetupResult {
 }
 
 class ProfileSetupSheet extends StatefulWidget {
+  // === 수정한 내용: 테마 사진 복구를 원래 모임 작업과 연결하여 다른 모임에 자동 적용하지 않는다 ===
+  final String recoveryTarget;
   final String? initialEmoji;
   final int? initialColorIndex;
 
@@ -25,6 +30,7 @@ class ProfileSetupSheet extends StatefulWidget {
     super.key,
     this.initialEmoji,
     this.initialColorIndex,
+    this.recoveryTarget = 'theme-logo',
   });
   @override
   State<ProfileSetupSheet> createState() => _ProfileSetupSheetState();
@@ -44,12 +50,11 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
 
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
-      );
+      final XFile? pickedFile = (await pickImagesWithRecovery(
+        context: context,
+        picker: _picker,
+        target: widget.recoveryTarget,
+      )).firstOrNull;
       if (pickedFile != null) {
         if (!mounted) return;
         Navigator.pop(
@@ -89,11 +94,11 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '프로필 꾸미기 ✨',
+              '프로필 꾸미기',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: AppConstants.textTitle,
               ),
             ),
             const SizedBox(height: 24),
@@ -102,7 +107,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: AppConstants.textCaption,
               ),
             ),
             const SizedBox(height: 12),
@@ -116,16 +121,16 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: AppConstants.dividerColor,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFFEEEEEE),
+                        color: AppConstants.borderColor,
                         width: 1.5,
                       ),
-                    ), // 🌟 다이어트
-                    child: Icon(
+                    ),
+                    child: const Icon(
                       Icons.camera_alt_outlined,
-                      color: Colors.grey[600],
+                      color: AppConstants.textBody,
                     ),
                   ),
                 ),
@@ -145,9 +150,12 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                         color: color,
                         shape: BoxShape.circle,
                         border: isSelected
-                            ? Border.all(color: Colors.black87, width: 3)
+                            ? Border.all(
+                                color: AppConstants.textTitle,
+                                width: 3,
+                              )
                             : Border.all(color: Colors.black12),
-                      ), // 🌟 선택 시 블랙 선!
+                      ),
                       child: isSelected
                           ? Icon(
                               Icons.check_rounded,
@@ -165,7 +173,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: AppConstants.textCaption,
               ),
             ),
             const SizedBox(height: 12),
@@ -183,13 +191,13 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: _selectedEmoji == null
-                          ? Colors.grey[100]
+                          ? AppConstants.dividerColor
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.do_not_disturb_alt_rounded,
-                      color: Colors.grey,
+                      color: AppConstants.textCaption,
                       size: 28,
                     ),
                   ),
@@ -205,7 +213,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: _selectedEmoji == emoji
-                            ? Colors.grey[100]
+                            ? AppConstants.dividerColor
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -216,28 +224,9 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
               ],
             ),
             const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              height: 54, // 🌟 버튼 다이어트
-              child: ElevatedButton(
-                onPressed: _onSubmit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87, // 🌟 블랙
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  '완료',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+
+            // 🌟 하단 완료 버튼을 MorakButton 으로 교체!
+            Button(text: '완료', onPressed: _onSubmit),
           ],
         ),
       ),

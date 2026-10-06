@@ -1,1 +1,3 @@
 #include "Generated.xcconfig"
+// === 수정한 내용: 로컬 Google OAuth 설정을 선택적으로 읽어 iOS 로그인 콜백을 구성한다 ===
+#include? "GoogleSignIn.xcconfig"

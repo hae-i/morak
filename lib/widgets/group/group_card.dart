@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../constants/app_constants.dart'; // 🌟 추가
 import '../../utils/color_utils.dart';
 import '../../models/group_model.dart';
 
@@ -26,18 +27,19 @@ class GroupCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16), // 🌟 20 -> 16
-          border: Border.all(color: const Color(0xFFEEEEEE)), // 🌟 그림자 없애고 테두리
+          color: AppConstants.cardBackground, // 🌟 교체
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppConstants.borderColor), // 🌟 교체
         ),
         child: Row(
           children: [
             Container(
               width: 54,
-              height: 54, // 🌟 60 -> 54
+              height: 54,
               decoration: BoxDecoration(
                 color: isDefaultColor
-                    ? Colors.grey[100]
+                    ? AppConstants
+                          .dividerColor // 🌟 교체
                     : groupColor.withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
@@ -50,7 +52,9 @@ class GroupCard extends StatelessWidget {
                       )
                     : Icon(
                         Icons.groups_rounded,
-                        color: isDefaultColor ? Colors.grey[400] : groupColor,
+                        color: isDefaultColor
+                            ? AppConstants.textCaption
+                            : groupColor, // 🌟 교체
                         size: 28,
                       ),
               ),
@@ -65,24 +69,25 @@ class GroupCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppConstants.textTitle, // 🌟 교체
                     ),
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      if (role == 'host') ...[
+                      // === 수정한 내용: 내 모임 목록에서 방장과 부방장을 구분한다 ===
+                      if (role == 'host' || role == 'deputy') ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange[50],
+                            color: Colors.orange[50], // 방장 뱃지는 오렌지색 그대로 유지
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '👑 방장',
+                            role == 'host' ? '👑 방장' : '부방장',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -96,7 +101,10 @@ class GroupCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: Colors.grey[300]),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppConstants.textCaption,
+            ), // 🌟 교체
           ],
         ),
       ),

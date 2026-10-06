@@ -26,6 +26,24 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<!-- === 수정한 내용: 사진 등록 시 iOS가 권한 목적을 표시하고 접근을 허용하도록 설명을 추가한다 === -->
+	<string>프로필, 모임 이미지와 만남 기록에 사진을 등록하기 위해 사진 보관함에 접근합니다.</string>
+	<!-- === 수정한 내용: 내려받은 사진을 기기 사진 보관함에 추가하는 권한 목적을 명시한다 === -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>선택한 만남 사진을 기기 사진 보관함에 저장합니다.</string>
+	<!-- === 수정한 내용: 발급된 iOS OAuth 설정을 빌드 변수로 연결하여 Google 로그인 복귀를 처리한다 === -->
+	<key>GIDClientID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(GOOGLE_IOS_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

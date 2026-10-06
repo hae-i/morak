@@ -1,8 +1,14 @@
+// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
+import '../../services/private_photos.dart';
+
+// === 수정한 내용: 실패 시 내부 오류와 개인정보 대신 이해 가능한 재시도 메시지를 표시한다 ===
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../services/image_selection_recovery.dart';
 
 import '../../../constants/app_constants.dart';
 import '../../../repositories/group_repository.dart';
@@ -10,6 +16,9 @@ import '../profile/profile_setup_sheet.dart';
 import '../../../utils/ui_utils.dart';
 import '../../../models/member_model.dart';
 import '../common/common_widgets.dart';
+import '../common/common_button.dart';
+import '../../utils/color_utils.dart';
+import '../../utils/data_refresh.dart';
 
 // ==========================================
 // 🌟 모임 정보 수정 바텀 시트
@@ -46,6 +55,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
   bool _isSaving = false;
   String? _existingCoverUrl;
   String? _existingLogoUrl;
+  bool _themeChanged = false;
 
   @override
   void initState() {
@@ -55,9 +65,10 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
     _existingCoverUrl = widget.initialCoverUrl;
     _existingLogoUrl = widget.initialLogoUrl;
     if (widget.initialColor != null) {
-      final val = int.tryParse(widget.initialColor!) ?? Colors.grey[200]!.value;
+      // === 수정한 내용: 저장된 HEX 색상을 올바르게 읽고 이름만 수정할 때 기존 테마를 보존한다 ===
+      final val = ColorUtils.stringToColor(widget.initialColor).toARGB32();
       for (int i = 0; i < AppConstants.themeColors.length; i++) {
-        if (AppConstants.themeColors[i].value == val) {
+        if (AppConstants.themeColors[i].toARGB32() == val) {
           _selectedColorIndex = i;
           break;
         }
@@ -72,43 +83,49 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
   }
 
   Future<void> _pickImage(bool isCover) async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
+    final picked = (await pickImagesWithRecovery(
+      context: context,
+      picker: _picker,
+      target: 'group:${widget.groupId}:${isCover ? 'cover' : 'logo'}',
       maxWidth: 1080,
       maxHeight: 1080,
-      imageQuality: 80,
-    );
-    if (picked != null)
+    )).firstOrNull;
+    if (mounted && picked != null) {
       setState(() {
-        if (isCover)
+        if (isCover) {
           _localCover = picked;
-        else
+        } else {
           _localLogo = picked;
+        }
       });
+    }
   }
 
   Future<void> _showColorPicker() async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+    // === 수정한 내용: 실제 반환 객체와 같은 타입을 사용하여 테마 선택의 런타임 오류를 방지한다 ===
+    final result = await showModalBottomSheet<ProfileSetupResult>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppConstants.cardBackground, // 🌟 교체
       elevation: 0,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => ProfileSetupSheet(
+        recoveryTarget: 'group:${widget.groupId}:logo',
         initialEmoji: _selectedEmoji,
         initialColorIndex: _selectedColorIndex,
       ),
     );
-    if (result != null) {
+    if (mounted && result != null) {
       setState(() {
-        if (result['image'] != null) {
-          _localLogo = result['image'];
+        if (result.hasImage) {
+          _localLogo = result.image;
           _selectedEmoji = null;
         } else {
-          _selectedEmoji = result['emoji'];
-          _selectedColorIndex = result['colorIndex'];
+          _selectedEmoji = result.emoji;
+          _selectedColorIndex = result.colorIndex;
+          _themeChanged = true;
           _localLogo = null;
           _existingLogoUrl = null;
         }
@@ -117,13 +134,14 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
     setState(() => _isSaving = true);
     try {
       final colorStr = _selectedColorIndex != null
           ? '#${AppConstants.themeColors[_selectedColorIndex!].value.toRadixString(16).substring(2).toUpperCase()}'
-          : null;
+          : (_themeChanged ? null : widget.initialColor);
       await widget.repository.updateGroup(
         groupId: widget.groupId,
         name: name,
@@ -135,13 +153,15 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
         existingLogoUrl: _existingLogoUrl,
       );
       if (mounted) {
+        refreshHomeFeed(context);
         Navigator.pop(context);
         widget.onUpdated();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('수정 실패: $e')));
+            .showSnackBar(SnackBar(content: Text('수정하지 못했습니다. 다시 시도해 주세요.')));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -152,7 +172,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppConstants.cardBackground, // 🌟 교체
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -168,7 +188,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: AppConstants.borderColor, // 🌟 교체
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -178,7 +198,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: AppConstants.textTitle, // 🌟 교체
             ),
           ),
           const SizedBox(height: 32),
@@ -196,9 +216,9 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
               height: 120,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey[50], // 🌟 연회색
+                color: AppConstants.dividerColor, // 🌟 교체
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFEEEEEE)), // 🌟 얇은 테두리
+                border: Border.all(color: AppConstants.borderColor), // 🌟 교체
                 image: _localCover != null
                     ? DecorationImage(
                         image: kIsWeb
@@ -209,25 +229,25 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                       )
                     : (_existingCoverUrl != null
                           ? DecorationImage(
-                              image: NetworkImage(_existingCoverUrl!),
+                              image: privatePhoto(_existingCoverUrl!),
                               fit: BoxFit.cover,
                             )
                           : null),
               ),
               child: (_localCover == null && _existingCoverUrl == null)
-                  ? Column(
+                  ? const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.add_photo_alternate_outlined,
                           size: 32,
-                          color: Colors.grey[400],
+                          color: AppConstants.textCaption, // 🌟 교체
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
                           '대표 사진 변경',
                           style: TextStyle(
-                            color: Colors.grey[500],
+                            color: AppConstants.textBody, // 🌟 교체
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
@@ -246,14 +266,14 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                   radius: 28,
                   backgroundColor: _selectedColorIndex != null
                       ? AppConstants.themeColors[_selectedColorIndex!]
-                      : Colors.grey[100],
+                      : AppConstants.dividerColor, // 🌟 교체
                   backgroundImage: _localLogo != null
                       ? (kIsWeb
                             ? NetworkImage(_localLogo!.path)
                             : FileImage(File(_localLogo!.path))
                                   as ImageProvider)
                       : (_existingLogoUrl != null
-                            ? NetworkImage(_existingLogoUrl!)
+                            ? privatePhoto(_existingLogoUrl!)
                             : null),
                   child: (_localLogo == null && _existingLogoUrl == null)
                       ? (_selectedEmoji != null
@@ -261,9 +281,9 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                                 _selectedEmoji!,
                                 style: const TextStyle(fontSize: 24),
                               )
-                            : Icon(
+                            : const Icon(
                                 Icons.color_lens_rounded,
-                                color: Colors.grey[400],
+                                color: AppConstants.textCaption, // 🌟 교체
                               ))
                       : null,
                 ),
@@ -274,61 +294,46 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                   controller: _nameController,
                   decoration: InputDecoration(
                     hintText: '모임 이름',
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                    hintStyle: const TextStyle(
+                      color: AppConstants.textCaption,
+                      fontSize: 15,
+                    ), // 🌟 교체
                     filled: true,
-                    fillColor: Colors.grey[50], // 🌟 플랫
+                    fillColor: AppConstants.dividerColor, // 🌟 교체
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                      borderSide: const BorderSide(
+                        color: AppConstants.borderColor,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                      borderSide: const BorderSide(
+                        color: AppConstants.borderColor,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(
-                        color: Colors.black87,
+                        color: AppConstants.primaryColor, // 🌟 교체
                         width: 1.5,
                       ),
-                    ), // 🌟 블랙
+                    ),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 54, // 🌟 버튼 다이어트
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87, // 🌟 블랙 통일
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      '수정 완료',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
-          ),
+
+          // 🌟 버튼 통일
+          _isSaving
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: AppConstants.primaryColor,
+                  ),
+                )
+              : Button(text: '수정 완료', onPressed: _save),
         ],
       ),
     );
@@ -377,21 +382,24 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
 
   Future<void> _pickImage() async {
     try {
-      final picked = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
-      );
-      if (picked != null) setState(() => _localImage = picked);
+      final picked = (await pickImagesWithRecovery(
+        context: context,
+        picker: _picker,
+        target: 'member:${widget.memberData.id}',
+      )).firstOrNull;
+      // === 수정한 내용: 멤버 사진 선택은 화면이 닫힌 뒤 상태를 변경하지 않는다 ===
+      if (mounted && picked != null) setState(() => _localImage = picked);
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다. 다시 시도해 주세요.')));
+      }
     }
   }
 
   Future<void> _saveProfile() async {
+    if (_isSaving) return;
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) return;
     setState(() => _isSaving = true);
@@ -404,13 +412,15 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
         isBirthdayPublic: _isBirthdayPublic,
       );
       if (mounted) {
+        refreshHomeFeed(context);
         Navigator.pop(context);
         widget.onUpdated();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('수정 실패: $e')));
+            .showSnackBar(SnackBar(content: Text('수정하지 못했습니다. 다시 시도해 주세요.')));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -421,7 +431,7 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppConstants.cardBackground, // 🌟 교체
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -437,7 +447,7 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: AppConstants.borderColor, // 🌟 교체
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -447,7 +457,7 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: AppConstants.textTitle, // 🌟 교체
             ),
           ),
           const SizedBox(height: 32),
@@ -465,13 +475,16 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: AppConstants.dividerColor, // 🌟 교체
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                  color: AppConstants.cardBackground,
+                  width: 2,
+                ), // 🌟 교체
               ),
               child: EditableAvatar(
                 radius: 45,
-                backgroundColor: Colors.grey[100]!,
+                backgroundColor: AppConstants.dividerColor, // 🌟 교체
                 localImage: _localImage,
                 networkImageUrl: _existingImageUrl,
                 fallbackIcon: Icons.person_rounded,
@@ -484,7 +497,11 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
             alignment: Alignment.centerLeft,
             child: Text(
               '닉네임',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.textTitle,
+              ), // 🌟 교체
             ),
           ),
           const SizedBox(height: 8),
@@ -492,19 +509,22 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
             controller: _nicknameController,
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey[50], // 🌟 플랫
+              fillColor: AppConstants.dividerColor, // 🌟 교체
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                borderSide: const BorderSide(color: AppConstants.borderColor),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                borderSide: const BorderSide(color: AppConstants.borderColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Colors.black87, width: 1.5),
-              ), // 🌟 블랙
+                borderSide: const BorderSide(
+                  color: AppConstants.primaryColor,
+                  width: 1.5,
+                ), // 🌟 교체
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -517,7 +537,7 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
                   value: _isBirthdayPublic,
                   onChanged: (val) =>
                       setState(() => _isBirthdayPublic = val ?? true),
-                  activeColor: Colors.black87, // 🌟 블랙 통일
+                  activeColor: AppConstants.primaryColor, // 🌟 교체
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -528,44 +548,22 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
                 '이 모임에 내 생일 공개하기 🎂',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.black87,
+                  color: AppConstants.textTitle, // 🌟 교체
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 54, // 🌟 버튼 다이어트
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87, // 🌟 블랙 통일
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      '수정 완료',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
-          ),
+
+          // 🌟 버튼 통일
+          _isSaving
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: AppConstants.primaryColor,
+                  ),
+                )
+              : Button(text: '수정 완료', onPressed: _saveProfile),
         ],
       ),
     );

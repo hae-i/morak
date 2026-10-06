@@ -1,26 +1,55 @@
+// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
+import '../../services/private_photos.dart';
+
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../constants/app_constants.dart';
 
 // 🌟 1. 공통 소제목 (Section Title)
 class SectionTitle extends StatelessWidget {
   final String title;
-  const SectionTitle(this.title, {super.key});
+  final bool isRequired;
+  final bool isOptional;
+
+  const SectionTitle(
+    this.title, {
+    super.key,
+    this.isRequired = false,
+    this.isOptional = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: AppConstants.textTitle,
+          ),
+        ),
+        if (isRequired || isOptional)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 1),
+            child: Text(
+              isRequired ? '*' : '',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isRequired
+                    ? AppConstants.dangerColor
+                    : AppConstants.textCaption,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -29,38 +58,67 @@ class SectionTitle extends StatelessWidget {
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
+  final String? errorText;
 
   const CustomTextField({
     super.key,
     required this.controller,
     required this.hint,
+    this.errorText,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-        filled: true,
-        fillColor: Colors.grey[50], // 🌟 플랫한 연회색 배경
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(
+              color: AppConstants.textCaption,
+              fontSize: 15,
+            ),
+            filled: true,
+            fillColor: AppConstants.dividerColor,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: errorText != null
+                    ? AppConstants.dangerColor
+                    : AppConstants.borderColor,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: errorText != null
+                    ? AppConstants.dangerColor
+                    : AppConstants.primaryColor,
+                width: 1.5,
+              ),
+            ),
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFEEEEEE)), // 얇은 테두리
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: Colors.black87,
-            width: 1.5,
-          ), // 🌟 포인트는 블랙!
-        ),
-      ),
+
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 8),
+            child: Text(
+              errorText!,
+              style: const TextStyle(
+                color: AppConstants.dangerColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -98,10 +156,7 @@ class EditableAvatar extends StatelessWidget {
             decoration: BoxDecoration(
               color: backgroundColor,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFEEEEEE),
-                width: 1,
-              ), // 🌟 테두리 다이어트
+              border: Border.all(color: AppConstants.borderColor, width: 1),
             ),
             child: localImage != null
                 ? ClipOval(
@@ -111,17 +166,17 @@ class EditableAvatar extends StatelessWidget {
                   )
                 : (networkImageUrl != null
                       ? ClipOval(
-                          child: CachedNetworkImage(
+                          child: PrivatePhotoImage(
                             imageUrl: networkImageUrl!,
                             fit: BoxFit.cover,
                             placeholder: (context, url) =>
                                 const CircularProgressIndicator(
-                                  color: Colors.black87,
+                                  color: AppConstants.primaryColor,
                                 ),
                             errorWidget: (context, url, error) => Icon(
                               fallbackIcon,
                               size: radius * 0.8,
-                              color: Colors.grey[400],
+                              color: AppConstants.textCaption,
                             ),
                           ),
                         )
@@ -135,7 +190,7 @@ class EditableAvatar extends StatelessWidget {
                             : Icon(
                                 fallbackIcon,
                                 size: radius * 0.8,
-                                color: Colors.grey[300],
+                                color: AppConstants.borderColor,
                               ))),
           ),
           Positioned(
@@ -144,9 +199,12 @@ class EditableAvatar extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(radius * 0.15),
               decoration: BoxDecoration(
-                color: Colors.black87, // 🌟 뱃지도 블랙으로 힙하게!
+                color: AppConstants.primaryColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                  color: AppConstants.cardBackground,
+                  width: 2,
+                ),
               ),
               child: Icon(
                 Icons.camera_alt_rounded,

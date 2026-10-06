@@ -9,6 +9,17 @@ import 'screens/profile/profile_setup_screen.dart';
 import 'widgets/group/group_join_sheet.dart';
 import 'screens/group/group_detail_screen.dart';
 
+String? _pendingInvite;
+// === 수정한 내용: 로그인과 프로필 설정 동안 내부 초대 목적지만 보관하여 가입 흐름을 이어 간다 ===
+String destinationAfterProfile({required bool hasProfile}) {
+  if (!hasProfile) return '/profile-setup';
+  final target = _pendingInvite;
+  _pendingInvite = null;
+  return target ?? '/home';
+}
+
+void clearPendingInvite() => _pendingInvite = null;
+
 // 🌟 앱의 전체 길안내를 담당하는 GoRouter
 final router = GoRouter(
   // 앱이 처음 켜지면 무조건 AuthGate로
@@ -18,6 +29,15 @@ final router = GoRouter(
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final isLoggingIn = state.matchedLocation == '/login';
+    if (state.uri.path == '/invite' && session == null) {
+      final groupId = state.uri.queryParameters['groupId']?.trim();
+      if (groupId != null && groupId.isNotEmpty) {
+        _pendingInvite = Uri(
+          path: '/invite',
+          queryParameters: {'groupId': groupId},
+        ).toString();
+      }
+    }
 
     // 로그인이 안 되어 있는데 다른 화면으로 가려고 하면? -> 로그인 화면으로 쫓아냄
     if (session == null && !isLoggingIn) return '/login';
@@ -32,9 +52,16 @@ final router = GoRouter(
     // 🚪 대문 (자동 라우팅 대기소)
     GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
     // 🔑 로그인 화면
-    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    // === 수정한 내용: 로그인·로그아웃 전환을 짧은 페이드로 연결하고 기존 인증 목적지는 유지한다 ===
+    GoRoute(
+      path: '/login',
+      pageBuilder: (context, state) => _authPage(state, const LoginScreen()),
+    ),
     // 🏠 홈 화면 (메인 뼈대)
-    GoRoute(path: '/home', builder: (context, state) => const MainSkeleton()),
+    GoRoute(
+      path: '/home',
+      pageBuilder: (context, state) => _authPage(state, const MainSkeleton()),
+    ),
     // 👤 초기 프로필 설정 화면
     GoRoute(
       path: '/profile-setup',
@@ -46,28 +73,7 @@ final router = GoRouter(
       path: '/invite',
       builder: (context, state) {
         final groupId = state.uri.queryParameters['groupId'] ?? '';
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => GroupJoinSheet(groupId: groupId),
-          ).then((isJoined) {
-            // 🌟 바텀시트가 닫힌 후 결과를 받아서 이동
-            if (context.mounted) {
-              if (isJoined == true) {
-                // 🎉 가입 성공 모임 상세 화면으로 다이렉트 꽂아주기
-                context.go('/group_detail?groupId=$groupId');
-              } else {
-                // ❌ 가입 안 하고 그냥 시트를 밑으로 내려서 닫은 경우 -> 홈으로
-                context.go('/home');
-              }
-            }
-          });
-        });
-
-        return const MainSkeleton();
+        return _InviteScreen(groupId: groupId);
       },
     ),
 
@@ -81,3 +87,55 @@ final router = GoRouter(
     ),
   ],
 );
+
+// === 수정한 내용: 초대 시트는 화면 생성 시 한 번만 열어 rebuild로 인한 중복 가입 창을 방지한다 ===
+class _InviteScreen extends StatefulWidget {
+  final String groupId;
+  const _InviteScreen({required this.groupId});
+  @override
+  State<_InviteScreen> createState() => _InviteScreenState();
+}
+
+class _InviteScreenState extends State<_InviteScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openInvite());
+  }
+
+  Future<void> _openInvite() async {
+    if (!mounted) return;
+    if (widget.groupId.trim().isEmpty) {
+      context.go('/home');
+      return;
+    }
+    final joined = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => GroupJoinSheet(groupId: widget.groupId),
+    );
+    if (!mounted) return;
+    context.go(
+      joined == true
+          ? Uri(
+              path: '/group_detail',
+              queryParameters: {'groupId': widget.groupId},
+            ).toString()
+          : '/home',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => const MainSkeleton();
+}
+
+CustomTransitionPage<void> _authPage(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          FadeTransition(opacity: animation, child: child),
+    );

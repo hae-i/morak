@@ -1,9 +1,17 @@
+// === 수정한 내용: 실패 시 내부 오류와 개인정보 대신 이해 가능한 재시도 메시지를 표시한다 ===
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../main_skeleton.dart';
+import '../../services/image_selection_recovery.dart';
+
+import 'package:go_router/go_router.dart';
+
+import '../../router.dart';
 import '../../utils/ui_utils.dart';
+import '../../widgets/profile/birthday_field.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../widgets/common/common_button.dart';
+import '../../constants/app_constants.dart';
 import '../../locator.dart';
 import '../../repositories/user_repository.dart';
 
@@ -30,39 +38,35 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
-      );
-      if (pickedFile != null) setState(() => _profileImage = pickedFile);
+      final pickedFile = (await pickImagesWithRecovery(
+        context: context,
+        picker: _picker,
+        target: 'global-profile',
+      )).firstOrNull;
+      // === 수정한 내용: 이미지와 날짜 선택은 화면 종료 뒤 상태를 바꾸지 않는다 ===
+      if (mounted && pickedFile != null) {
+        setState(() => _profileImage = pickedFile);
+      }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다. 다시 시도해 주세요.')));
+      }
     }
   }
 
   Future<void> _pickBirthday() async {
-    final picked = await showDatePicker(
+    // === 수정한 내용: 공통 날짜 선택기를 사용하고 화면의 mounted 검사는 유지한다 ===
+    final picked = await UiUtils.pickBirthday(
       context: context,
-      initialDate: _selectedBirthday ?? DateTime(1996, 3, 12),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: Colors.black87,
-          ), // 🌟 블랙 테마 달력
-        ),
-        child: child!,
-      ),
+      selected: _selectedBirthday,
     );
-    if (picked != null) setState(() => _selectedBirthday = picked);
+    if (mounted && picked != null) setState(() => _selectedBirthday = picked);
   }
 
   Future<void> _completeSignUp() async {
+    if (_isLoading) return;
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) {
       UiUtils.showWarningDialog(
@@ -80,34 +84,46 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         newImageFile: _profileImage,
         isNewSetup: true,
       );
-      if (mounted)
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainSkeleton()),
-        );
+      // === 수정한 내용: 프로필 설정 후 Router 경로와 화면을 함께 갱신하고 대기 중인 초대로 복귀한다 ===
+      if (mounted) context.go(destinationAfterProfile(hasProfile: true));
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('프로필 설정 실패: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('프로필을 저장하지 못했습니다. 다시 시도해 주세요.')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // === 수정한 내용: 설정 화면의 로그아웃 실패를 비동기 예외 대신 재시도 메시지로 처리한다 ===
+  Future<void> _signOut() async {
+    try {
+      await _userRepo.signOut();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그아웃하지 못했습니다. 다시 시도해 주세요.')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // 🌟 순백색
+      backgroundColor: AppConstants.scaffoldBackground,
       appBar: AppBar(
         title: const Text(
           '환영합니다! 🎉',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 17,
-            color: Colors.black87,
+            color: AppConstants.textTitle,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppConstants.scaffoldBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -116,7 +132,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             size: 20,
             color: Colors.black87,
           ),
-          onPressed: () async => await _userRepo.signOut(),
+          onPressed: _signOut,
         ),
       ),
       body: SafeArea(
@@ -157,79 +173,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 48),
               const SectionTitle('닉네임'),
               const SizedBox(height: 12),
-              CustomTextField(controller: _nicknameController, hint: '예: 모락대장'),
+              CustomTextField(controller: _nicknameController, hint: '예: 모락이'),
               const SizedBox(height: 28),
               const SectionTitle('생년월일'),
               const SizedBox(height: 12),
-              InkWell(
-                onTap: _pickBirthday,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50], // 🌟 플랫 배경
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFEEEEEE)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedBirthday != null
-                            ? '${_selectedBirthday!.year}-${_selectedBirthday!.month.toString().padLeft(2, '0')}-${_selectedBirthday!.day.toString().padLeft(2, '0')}'
-                            : '예) 1996-03-12',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: _selectedBirthday != null
-                              ? Colors.black87
-                              : Colors.grey[400],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Icon(
-                        Icons.calendar_month_rounded,
-                        color: Colors.grey[400],
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              BirthdayField(value: _selectedBirthday, onTap: _pickBirthday),
               const SizedBox(height: 56),
+
               SizedBox(
                 width: double.infinity,
-                height: 54, // 🌟 버튼 다이어트
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _completeSignUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87, // 🌟 블랙 버튼
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          '모락 시작하기',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                height: 54,
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppConstants.primaryColor,
                         ),
-                ),
+                      )
+                    : Button(text: '모락 시작하기', onPressed: _completeSignUp),
               ),
               const SizedBox(height: 24),
             ],

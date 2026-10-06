@@ -1,10 +1,17 @@
+// === 수정한 내용: 실패 시 내부 오류와 개인정보 대신 이해 가능한 재시도 메시지를 표시한다 ===
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../services/image_selection_recovery.dart';
+
 import '../../utils/ui_utils.dart';
+import '../../widgets/profile/birthday_field.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../widgets/common/common_button.dart';
+import '../../constants/app_constants.dart';
 import '../../locator.dart';
 import '../../repositories/user_repository.dart';
+import '../../widgets/common/request_error_view.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -17,6 +24,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   DateTime? _selectedBirthday;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _profileLoaded = false;
 
   final ImagePicker _picker = ImagePicker();
   XFile? _localProfileImage;
@@ -36,57 +44,63 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _loadMyProfile() async {
+    // === 수정한 내용: 누락된 프로필과 조회 실패를 무한 로딩 대신 재시도로 처리하고 저장을 차단한다 ===
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _profileLoaded = false;
+    });
     try {
       final profile = await _userRepo.fetchMyGlobalProfile();
       if (profile != null && mounted) {
         setState(() {
           _nicknameController.text = profile.displayName;
           _existingProfileImageUrl = profile.profileImageUrl;
-          if (profile.birthday != null)
-            _selectedBirthday = DateTime.parse(profile.birthday!);
+          if (profile.birthday != null) {
+            _selectedBirthday = DateTime.tryParse(profile.birthday!);
+          }
           _isLoading = false;
+          _profileLoaded = true;
         });
       }
     } catch (e) {
+      // 오류 원문은 화면이나 로그에 노출하지 않습니다.
+    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _pickImage() async {
     try {
-      final picked = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
-      );
-      if (picked != null) setState(() => _localProfileImage = picked);
+      final picked = (await pickImagesWithRecovery(
+        context: context,
+        picker: _picker,
+        target: 'global-profile',
+      )).firstOrNull;
+      // === 수정한 내용: 비동기 이미지 선택 완료 후 살아 있는 화면에서만 상태를 바꾼다 ===
+      if (mounted && picked != null) {
+        setState(() => _localProfileImage = picked);
+      }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다. 다시 시도해 주세요.')));
+      }
     }
   }
 
   Future<void> _pickBirthday() async {
-    final picked = await showDatePicker(
+    // === 수정한 내용: 공통 날짜 선택기를 사용하고 화면의 mounted 검사는 유지한다 ===
+    final picked = await UiUtils.pickBirthday(
       context: context,
-      initialDate: _selectedBirthday ?? DateTime(1996, 3, 12),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: Colors.black87,
-          ), // 🌟 포인트 색상 블랙
-        ),
-        child: child!,
-      ),
+      selected: _selectedBirthday,
     );
-    if (picked != null) setState(() => _selectedBirthday = picked);
+    if (mounted && picked != null) setState(() => _selectedBirthday = picked);
   }
 
   Future<void> _updateProfile() async {
+    if (_isSaving || !_profileLoaded) return;
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) {
       UiUtils.showWarningDialog(
@@ -114,9 +128,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('수정 실패: $e')));
+            .showSnackBar(SnackBar(content: Text('수정하지 못했습니다. 다시 시도해 주세요.')));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -125,17 +140,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // 🌟 순백색
+      backgroundColor: AppConstants.scaffoldBackground,
       appBar: AppBar(
         title: const Text(
           '내 계정 편집',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 17,
-            color: Colors.black87,
+            color: AppConstants.textTitle,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppConstants.scaffoldBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -153,6 +168,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 color: Colors.black87,
                 strokeWidth: 2,
               ),
+            )
+          : !_profileLoaded
+          ? RequestErrorView(
+              message: '프로필을 불러오지 못했습니다.',
+              onRetry: _loadMyProfile,
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
@@ -189,75 +209,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   const SizedBox(height: 28),
                   const SectionTitle('생년월일'),
                   const SizedBox(height: 12),
-                  InkWell(
-                    onTap: _pickBirthday,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50], // 🌟 플랫 배경
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFEEEEEE)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _selectedBirthday != null
-                                ? '${_selectedBirthday!.year}-${_selectedBirthday!.month.toString().padLeft(2, '0')}-${_selectedBirthday!.day.toString().padLeft(2, '0')}'
-                                : '예) 1996-03-12',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: _selectedBirthday != null
-                                  ? Colors.black87
-                                  : Colors.grey[400],
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Icon(
-                            Icons.calendar_month_rounded,
-                            color: Colors.grey[400],
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  BirthdayField(value: _selectedBirthday, onTap: _pickBirthday),
                   const SizedBox(height: 56),
+
                   SizedBox(
                     width: double.infinity,
-                    height: 54, // 🌟 버튼 다이어트
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _updateProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black87, // 🌟 블랙 버튼
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text(
-                              '수정 완료',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                    height: 54,
+                    child: _isSaving
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppConstants.primaryColor,
                             ),
-                    ),
+                          )
+                        : Button(text: '수정 완료', onPressed: _updateProfile),
                   ),
                 ],
               ),
