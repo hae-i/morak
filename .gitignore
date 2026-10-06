@@ -173,3 +173,5 @@ fabric.properties
 .env
 
 .wrangler/
+
+ios/Flutter/GoogleSignIn.xcconfig

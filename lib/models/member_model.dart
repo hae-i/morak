@@ -3,6 +3,11 @@ class MemberModel {
   final String userId;
   final String displayName;
   final String role;
+  // === 수정한 내용: 탈퇴 멤버는 출석 식별자를 유지하되 현재 멤버 권한에서 제외한다 ===
+  final bool isDeleted;
+  bool get isActive => !isDeleted;
+  bool get isHost => isActive && role == 'host';
+  bool get isManager => isActive && (role == 'host' || role == 'deputy');
   final String? profileImageUrl;
   final bool isBirthdayPublic;
   final String? joinedAt;
@@ -17,6 +22,7 @@ class MemberModel {
     required this.userId,
     required this.displayName,
     required this.role,
+    this.isDeleted = false,
     this.profileImageUrl,
     required this.isBirthdayPublic,
     this.joinedAt,
@@ -29,12 +35,20 @@ class MemberModel {
     return MemberModel(
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
-      displayName: json['display_name'] ?? '알 수 없음',
+      displayName: json['is_deleted'] == true
+          ? '탈퇴한 멤버'
+          : (json['display_name'] ?? '알 수 없음'),
       role: json['role'] ?? 'member',
-      profileImageUrl: json['profile_image_url'],
-      isBirthdayPublic: json['is_birthday_public'] ?? true,
+      isDeleted: json['is_deleted'] == true,
+      profileImageUrl: json['is_deleted'] == true
+          ? null
+          : json['profile_image_url'],
+      isBirthdayPublic:
+          json['is_deleted'] != true && (json['is_birthday_public'] ?? true),
       joinedAt: json['joined_at'],
-      birthday: json['users'] != null ? json['users']['birthday'] : null,
+      birthday: json['is_deleted'] != true && json['users'] != null
+          ? json['users']['birthday']
+          : null,
       attendedCount: json['attended_count'] ?? 0,
       attendanceRate: (json['attendance_rate'] ?? 0.0).toDouble(),
     );

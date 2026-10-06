@@ -1,18 +1,24 @@
+// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
+import '../../services/private_photos.dart';
+
+// === 수정한 내용: 실패 시 내부 오류와 개인정보 대신 이해 가능한 재시도 메시지를 표시한다 ===
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
-import '../../utils/ui_utils.dart';
+import '../../services/image_selection_recovery.dart';
+
+import '../../constants/app_constants.dart';
 import '../../widgets/common/common_widgets.dart';
+import '../../widgets/common/common_button.dart';
 import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../repositories/meetup_repository.dart';
 import '../../models/meetup_model.dart';
 import '../../models/member_model.dart';
+import '../../utils/data_refresh.dart';
 
 class MeetupCreateScreen extends StatefulWidget {
   final String groupId;
@@ -34,10 +40,16 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
 
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
+  // === 수정한 내용: 필수 멤버 조회가 완료되기 전 기존 기록의 덮어쓰기를 차단한다 ===
+  bool _isInitializing = true;
+  bool _membersLoaded = false;
   List<MemberModel> _members = [];
   final Set<String> _selectedMemberIds = {};
   final ImagePicker _picker = ImagePicker();
   List<dynamic> _photos = [];
+
+  // 🌟 제목 미입력 시 띄울 에러 메시지 상태 변수
+  String? _titleError;
 
   final _groupRepo = locator<GroupRepository>();
   final _meetupRepo = locator<MeetupRepository>();
@@ -45,6 +57,16 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   @override
   void initState() {
     super.initState();
+    // === 수정한 내용: 기존 입력값은 즉시 복원하여 지연 조회가 사용자의 편집을 덮지 않게 한다 ===
+    final initial = widget.initialMeetup;
+    if (initial != null) {
+      _titleController.text = initial.title ?? '';
+      _locationController.text = initial.location ?? '';
+      _menuController.text = initial.menu ?? '';
+      _selectedDate = DateTime.tryParse(initial.date) ?? _selectedDate;
+      _photos = List<dynamic>.from(initial.photos);
+      _selectedMemberIds.addAll(initial.attendanceMemberIds);
+    }
     _loadInitialData();
   }
 
@@ -57,81 +79,87 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    if (!mounted) return;
+    setState(() => _isInitializing = true);
     try {
-      _members = await _groupRepo.fetchGroupMembers(widget.groupId);
-      if (mounted) setState(() {});
-      if (widget.initialMeetup != null) {
-        _titleController.text = widget.initialMeetup!.title ?? '';
-        _locationController.text = widget.initialMeetup!.location ?? '';
-        _menuController.text = widget.initialMeetup!.menu ?? '';
-        if (widget.initialMeetup!.date.isNotEmpty)
-          _selectedDate = DateTime.parse(widget.initialMeetup!.date);
-        _photos = List<dynamic>.from(widget.initialMeetup!.photos);
-        _selectedMemberIds.addAll(widget.initialMeetup!.attendanceMemberIds);
-        if (mounted) setState(() {});
-      }
-    } catch (e) {
-      debugPrint('데이터 로드 실패: $e');
+      final members = await _groupRepo.fetchGroupMembers(widget.groupId);
+      if (!mounted) return;
+      setState(() {
+        // === 수정한 내용: 새 참석자는 현재 멤버만 선택하고 기존 탈퇴 참석자의 식별자는 보존한다 ===
+        _members = members
+            .where((m) => m.isActive || _selectedMemberIds.contains(m.id))
+            .toList();
+        _membersLoaded = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('멤버를 불러오지 못했습니다. 다시 시도해 주세요.'),
+          action: SnackBarAction(label: '재시도', onPressed: _loadInitialData),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isInitializing = false);
     }
   }
 
-  void _pickDate() {
-    showModalBottomSheet(
+  Future<void> _pickDate() async {
+    final DateTime? pickedDate = await showDialog<DateTime>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (BuildContext context) {
-        return SafeArea(
-          child: SizedBox(
-            height: 300,
+        DateTime tempDate = _selectedDate;
+        return Dialog(
+          backgroundColor: AppConstants.cardBackground,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFEEEEEE)),
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: AppConstants.primaryColor,
+                      onPrimary: Colors.white,
+                      onSurface: AppConstants.textTitle,
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        '날짜 선택',
+                  child: CalendarDatePicker(
+                    initialDate: _selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    onDateChanged: (DateTime newDate) {
+                      tempDate = newDate;
+                    },
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        '취소',
                         style: TextStyle(
-                          fontSize: 16,
+                          color: AppConstants.textCaption,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Text(
-                          '완료',
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, tempDate),
+                      child: const Text(
+                        '확인',
+                        style: TextStyle(
+                          color: AppConstants.primaryColor,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.date,
-                    initialDateTime: _selectedDate,
-                    minimumDate: DateTime(2020),
-                    maximumDate: DateTime.now().add(const Duration(days: 365)),
-                    onDateTimeChanged: (DateTime newDate) {
-                      setState(() => _selectedDate = newDate);
-                    },
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -139,34 +167,53 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         );
       },
     );
+
+    // === 수정한 내용: 비동기 선택 창 종료 후 폐기된 화면을 갱신하지 않는다 ===
+    if (mounted && pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
   }
 
   Future<void> _pickImages() async {
     try {
-      final List<XFile> pickedFiles = await _picker.pickMultiImage(
+      final List<XFile> pickedFiles = await pickImagesWithRecovery(
+        context: context,
+        picker: _picker,
+        multiple: true,
+        target: 'meetup:${widget.groupId}:${widget.initialMeetup?.id ?? 'new'}',
         maxWidth: 1080,
         maxHeight: 1080,
-        imageQuality: 80,
       );
-      if (pickedFiles.isNotEmpty) setState(() => _photos.addAll(pickedFiles));
+      if (mounted && pickedFiles.isNotEmpty) {
+        setState(() => _photos.addAll(pickedFiles));
+      }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('사진을 불러오지 못했습니다. 다시 시도해 주세요.')));
+      }
     }
   }
 
   Future<void> _saveMeetup() async {
+    // === 수정한 내용: 초기 조회 실패와 중복 저장은 DB 쓰기 전에 차단한다 ===
+    if (_isLoading || _isInitializing) return;
+    if (!_membersLoaded) {
+      await _loadInitialData();
+      return;
+    }
+    setState(() => _titleError = null);
+
     final title = _titleController.text.trim();
     final location = _locationController.text.trim();
     final menu = _menuController.text.trim();
 
-    if (title.isEmpty && location.isEmpty && menu.isEmpty && _photos.isEmpty) {
-      UiUtils.showWarningDialog(
-        context: context,
-        title: '빈 기록이에요!',
-        message: '제목, 장소, 사진 중\n최소 하나는 기록을 남겨주세요. ☁️',
-      );
+    // 🌟 알림창(WarningDialog) 대신 필수 입력란(제목) 하단에 빨간색 경고 문구 출력
+    if (title.isEmpty) {
+      setState(() => _titleError = '어떤 만남이었는지 제목을 입력해 주세요.');
       return;
     }
 
@@ -180,11 +227,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         meetDate: _selectedDate.toIso8601String(),
         location: location,
         menu: menu,
-        photos: _photos,
-        memberIds: _selectedMemberIds,
+        photos: List<dynamic>.from(_photos),
+        memberIds: Set<String>.from(_selectedMemberIds),
       );
 
-      if (context.mounted) {
+      if (mounted) {
+        // === 수정한 내용: 기록 저장 성공 후 홈 캐시를 갱신하고 상위 화면에 변경 결과를 반환한다 ===
+        refreshHomeFeed(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -192,21 +241,23 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                   ? '🎉 기록과 사진이 저장되었어요!'
                   : '🎉 기록이 수정되었어요!',
             ),
-            backgroundColor: Colors.black87,
+            backgroundColor: AppConstants.textTitle,
           ),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (context.mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+            .showSnackBar(SnackBar(content: Text('저장하지 못했습니다. 다시 시도해 주세요.')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Widget _buildImagePreview(int index, dynamic item) {
+    // 이미지 프리뷰 관련 기존 코드 유지
     final bool isRepresentative = index == 0;
     return GestureDetector(
       onTap: () {
@@ -215,26 +266,16 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             final movedItem = _photos.removeAt(index);
             _photos.insert(0, movedItem);
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '대표 사진이 변경되었습니다! 📸',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              backgroundColor: Colors.black87,
-              duration: Duration(seconds: 1),
-            ),
-          );
         }
       },
       child: Container(
-        width: 86, // 🌟 사진첩 썸네일 박스 다이어트
+        width: 86,
         height: 86,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           border: isRepresentative
-              ? Border.all(color: Colors.black87, width: 2)
-              : Border.all(color: const Color(0xFFEEEEEE)),
+              ? Border.all(color: AppConstants.primaryColor, width: 2)
+              : Border.all(color: AppConstants.borderColor),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Stack(
@@ -243,12 +284,12 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(isRepresentative ? 12 : 13),
                 child: item is String
-                    ? CachedNetworkImage(
+                    ? PrivatePhotoImage(
                         imageUrl: item,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const Center(
                           child: CircularProgressIndicator(
-                            color: Colors.black87,
+                            color: AppConstants.primaryColor,
                             strokeWidth: 2,
                           ),
                         ),
@@ -291,7 +332,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                     vertical: 3,
                   ),
                   decoration: const BoxDecoration(
-                    color: Colors.black87,
+                    color: AppConstants.primaryColor,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(12),
                       bottomRight: Radius.circular(8),
@@ -318,20 +359,20 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     final isEditMode = widget.initialMeetup != null;
 
     return Scaffold(
-      backgroundColor: Colors.white, // 🌟 순백색 배경
+      backgroundColor: AppConstants.scaffoldBackground,
       appBar: AppBar(
         title: Text(
-          isEditMode ? '기록 수정하기 ✏️' : '기록 남기기 ✏️',
+          isEditMode ? '기록 수정하기' : '기록 남기기',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppConstants.scaffoldBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
             size: 20,
-            color: Colors.black87,
+            color: AppConstants.textTitle,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -341,15 +382,16 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionTitle('무슨 만남이었나요?'),
+            const SectionTitle('무슨 만남이었나요?', isRequired: true),
             const SizedBox(height: 12),
             CustomTextField(
               controller: _titleController,
               hint: '예) 모락이 생일파티 🎂',
+              errorText: _titleError, // 🌟 에러 상태 연결
             ),
             const SizedBox(height: 28),
 
-            const SectionTitle('만난 날짜'),
+            const SectionTitle('만난 날짜', isRequired: true),
             const SizedBox(height: 12),
             InkWell(
               onTap: _pickDate,
@@ -360,24 +402,24 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                   vertical: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: AppConstants.cardBackground,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFEEEEEE)),
+                  border: Border.all(color: AppConstants.borderColor),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       '${_selectedDate.year}. ${_selectedDate.month.toString().padLeft(2, '0')}. ${_selectedDate.day.toString().padLeft(2, '0')}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 15,
-                        color: Colors.grey[800],
+                        color: AppConstants.textTitle,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Icon(
+                    const Icon(
                       Icons.calendar_month_rounded,
-                      color: Colors.grey[400],
+                      color: AppConstants.textCaption,
                       size: 20,
                     ),
                   ],
@@ -386,12 +428,15 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             ),
             const SizedBox(height: 28),
 
-            const SectionTitle('누가 참석했나요?'),
+            const SectionTitle('누가 참석했나요?', isRequired: true),
             const SizedBox(height: 12),
             _members.isEmpty
-                ? Text(
+                ? const Text(
                     '등록된 멤버가 없어요.\n이전 화면에서 멤버를 먼저 추가해주세요!',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                    style: TextStyle(
+                      color: AppConstants.textCaption,
+                      fontSize: 13,
+                    ),
                   )
                 : Wrap(
                     spacing: 8.0,
@@ -402,7 +447,9 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                       return FilterChip(
                         label: Text(member.displayName),
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[600],
+                          color: isSelected
+                              ? Colors.white
+                              : AppConstants.textBody,
                           fontWeight: isSelected
                               ? FontWeight.bold
                               : FontWeight.w500,
@@ -411,22 +458,23 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                         selected: isSelected,
                         onSelected: (bool selected) {
                           setState(() {
-                            if (selected)
+                            if (selected) {
                               _selectedMemberIds.add(memberId);
-                            else
+                            } else {
                               _selectedMemberIds.remove(memberId);
+                            }
                           });
                         },
-                        selectedColor: Colors.black87,
+                        selectedColor: AppConstants.primaryColor,
                         checkmarkColor: Colors.white,
-                        backgroundColor: Colors.white,
+                        backgroundColor: AppConstants.cardBackground,
                         showCheckmark: false,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
                             color: isSelected
-                                ? Colors.black87
-                                : const Color(0xFFE0E0E0),
+                                ? AppConstants.primaryColor
+                                : AppConstants.borderColor,
                           ),
                         ),
                       );
@@ -437,13 +485,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const SectionTitle('추억 사진 (선택)'),
+                const SectionTitle('추억 사진', isOptional: true),
                 const SizedBox(width: 8),
-                Text(
+                const Text(
                   '사진을 터치하면 대표로 지정돼요!',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey[400],
+                    color: AppConstants.textCaption,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -462,23 +510,23 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                       height: 86,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        color: Colors.grey[50],
+                        color: AppConstants.cardBackground,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFEEEEEE)),
+                        border: Border.all(color: AppConstants.borderColor),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.add_a_photo_outlined,
-                            color: Colors.grey[400],
+                            color: AppConstants.textCaption,
                             size: 24,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${_photos.length}장',
-                            style: TextStyle(
-                              color: Colors.grey[500],
+                            style: const TextStyle(
+                              color: AppConstants.textBody,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -495,15 +543,15 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             ),
             const SizedBox(height: 28),
 
-            const SectionTitle('장소'),
+            const SectionTitle('장소', isOptional: true),
             const SizedBox(height: 12),
             CustomTextField(
               controller: _locationController,
-              hint: '예) 구로몬 시장, 도톤보리',
+              hint: '예) 연남동 타코집',
             ),
             const SizedBox(height: 28),
 
-            const SectionTitle('메뉴'),
+            const SectionTitle('메뉴', isOptional: true),
             const SizedBox(height: 12),
             CustomTextField(
               controller: _menuController,
@@ -511,37 +559,16 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             ),
             const SizedBox(height: 40),
 
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveMeetup,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+            (_isLoading || _isInitializing)
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppConstants.primaryColor,
+                    ),
+                  )
+                : Button(
+                    text: isEditMode ? '수정 완료' : '기록 완료',
+                    onPressed: _saveMeetup,
                   ),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        isEditMode ? '수정 완료' : '기록 완료',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-              ),
-            ),
             const SizedBox(height: 20),
           ],
         ),

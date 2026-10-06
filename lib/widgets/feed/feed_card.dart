@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
+import '../../services/private_photos.dart';
 
+import 'package:flutter/material.dart';
+
+import '../../constants/app_constants.dart'; // 🌟 추가
 import '../../utils/color_utils.dart';
 import '../../models/meetup_model.dart';
 
@@ -38,9 +41,9 @@ class FeedCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16), // 🌟 24 -> 16 날렵하게
-        border: Border.all(color: const Color(0xFFEEEEEE)), // 🌟 그림자 폭파! 얇은 선!
+        color: AppConstants.cardBackground, // 🌟 교체
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppConstants.borderColor), // 🌟 교체
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +60,7 @@ class FeedCard extends StatelessWidget {
                     shape: BoxShape.circle,
                     image: group?.logoImageUrl != null
                         ? DecorationImage(
-                            image: NetworkImage(group!.logoImageUrl!),
+                            image: privatePhoto(group!.logoImageUrl!),
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -81,15 +84,16 @@ class FeedCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: Colors.black87,
+                          color: AppConstants.textTitle, // 🌟 교체
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        formattedDate,
-                        style: TextStyle(
+                        // === 수정한 내용: 홈 피드에도 서버가 정한 작성자를 표시한다 ===
+                        '$formattedDate · ${feed.authorLabel}',
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[500],
+                          color: AppConstants.textCaption, // 🌟 교체
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -99,7 +103,7 @@ class FeedCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(
                     Icons.more_horiz_rounded,
-                    color: Colors.grey,
+                    color: AppConstants.textCaption, // 🌟 교체
                   ),
                   onPressed: () {},
                 ),
@@ -107,17 +111,17 @@ class FeedCard extends StatelessWidget {
             ),
           ),
           if (imageUrl != null)
-            CachedNetworkImage(
+            PrivatePhotoImage(
               imageUrl: imageUrl,
               fit: BoxFit.cover,
               width: double.infinity,
-              height: 260, // 🌟 높이 다이어트
+              height: 260,
               placeholder: (context, url) => Container(
                 height: 260,
-                color: Colors.grey[50],
+                color: AppConstants.dividerColor, // 🌟 교체
                 child: const Center(
                   child: CircularProgressIndicator(
-                    color: Colors.black87,
+                    color: AppConstants.primaryColor, // 🌟 교체
                     strokeWidth: 2,
                   ),
                 ),
@@ -132,7 +136,7 @@ class FeedCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 14,
                   height: 1.4,
-                  color: Colors.black87,
+                  color: AppConstants.textBody, // 🌟 교체
                 ),
               ),
             ),
@@ -143,14 +147,14 @@ class FeedCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(
                     Icons.favorite_border_rounded,
-                    color: Colors.black87,
+                    color: AppConstants.textTitle, // 🌟 교체
                   ),
                   onPressed: onLike,
                 ),
                 IconButton(
                   icon: const Icon(
                     Icons.chat_bubble_outline_rounded,
-                    color: Colors.black87,
+                    color: AppConstants.textTitle, // 🌟 교체
                   ),
                   onPressed: () {},
                 ),

@@ -1,12 +1,15 @@
+// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
+import '../../services/private_photos.dart';
+
+// === 수정한 내용: 실패 시 내부 오류와 개인정보 대신 이해 가능한 재시도 메시지를 표시한다 ===
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../utils/invite_helper.dart';
-import '../../../utils/color_utils.dart';
+import '../../../constants/app_constants.dart';
 import '../../../utils/ui_utils.dart';
 import '../../../repositories/group_repository.dart';
 import '../../../models/member_model.dart';
+import 'member_manage_sheet.dart';
 
 class MemberDrawer extends StatefulWidget {
   final String groupId, groupName;
@@ -16,6 +19,12 @@ class MemberDrawer extends StatefulWidget {
   final bool isDefaultColor;
   final GroupRepository repository;
   final void Function(MemberModel) onMemberTap;
+  final VoidCallback? onClose;
+  // === 수정한 내용: 모임 설정·공유를 넓은 화면과 작은 화면의 같은 사이드바 하단으로 이동한다 ===
+  final VoidCallback? onSettings;
+  final VoidCallback? onShare;
+  final VoidCallback? onBack;
+  final VoidCallback? onLeave;
 
   const MemberDrawer({
     super.key,
@@ -27,51 +36,21 @@ class MemberDrawer extends StatefulWidget {
     required this.isDefaultColor,
     required this.repository,
     required this.onMemberTap,
+    this.onClose,
+    this.onSettings,
+    this.onShare,
+    this.onBack,
+    this.onLeave,
   });
+
   @override
   State<MemberDrawer> createState() => _MemberDrawerState();
 }
 
 class _MemberDrawerState extends State<MemberDrawer> {
-  final TextEditingController _nameController = TextEditingController();
-  bool _isSaving = false;
   String _sortType = 'joined';
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _copyInviteLink() async {
-    await InviteHelper.copyInviteLink(
-      context: context,
-      groupId: widget.groupId,
-    );
-    if (mounted) {
-      final isWideScreen = MediaQuery.of(context).size.width > 600;
-      if (!isWideScreen) Navigator.pop(context);
-    }
-  }
-
-  Future<void> _addMember() async {
-    if (_nameController.text.trim().isEmpty) return;
-    setState(() => _isSaving = true);
-    try {
-      await widget.repository.addMember(
-        widget.groupId,
-        _nameController.text.trim(),
-      );
-      _nameController.clear();
-      widget.onMembersUpdated();
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('에러: $e')));
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
+  // 🌟 (불필요해진 _nameController, _isSaving, _addMember 함수 모두 삭제 완료!)
 
   Future<void> _removeMember(MemberModel member) async {
     final confirm = await UiUtils.showBeautifulDialog(
@@ -79,41 +58,80 @@ class _MemberDrawerState extends State<MemberDrawer> {
       title: '멤버 내보내기',
       content: '${member.displayName} 님을 정말 내보내시겠습니까?',
       confirmText: '내보내기',
-      confirmColor: Colors.redAccent,
+      confirmColor: AppConstants.dangerColor,
       icon: Icons.person_remove_rounded,
     );
     if (confirm == true) {
       try {
         await widget.repository.removeMember(member.id);
-        widget.onMembersUpdated();
+        // === 수정한 내용: 요청 완료 후 부모 갱신은 멤버 화면이 살아 있을 때만 호출한다 ===
+        if (mounted) widget.onMembersUpdated();
       } catch (e) {
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('에러: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('요청을 완료하지 못했습니다. 다시 시도해 주세요.')),
+          );
+        }
       }
     }
   }
 
-  Future<void> _changeRole(MemberModel member) async {
+  Future<void> _changeRole(MemberModel member, {bool transfer = false}) async {
     final currentRole = member.role;
-    final newRole = currentRole == 'host' ? 'member' : 'host';
-    final actionText = newRole == 'host' ? '방장으로 승급' : '일반 멤버로 강등';
+    final newRole = transfer
+        ? 'host'
+        : (currentRole == 'host' ? 'member' : 'host');
+    // === 수정한 내용: 방장 위임 시 본인도 일반 멤버가 됨을 확인하고 원자적 RPC를 사용한다 ===
+    final actionText = newRole == 'host'
+        ? '방장으로 위임하고 나는 일반 멤버로 변경'
+        : '일반 멤버로 강등';
     final confirm = await UiUtils.showBeautifulDialog(
       context: context,
       title: '권한 변경',
       content: '${member.displayName} 님을 $actionText 시키겠습니까?',
       confirmText: '변경',
-      confirmColor: Colors.blue,
+      confirmColor: AppConstants.highlightColor,
       icon: Icons.manage_accounts_rounded,
     );
     if (confirm == true) {
       try {
-        await widget.repository.updateMemberRole(member.id, newRole);
-        widget.onMembersUpdated();
+        if (newRole == 'host') {
+          await widget.repository.transferHost(widget.groupId, member.id);
+        } else {
+          await widget.repository.updateMemberRole(member.id, newRole);
+        }
+        if (mounted) widget.onMembersUpdated();
       } catch (e) {
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('권한 변경 실패: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('권한을 변경하지 못했습니다. 다시 시도해 주세요.')),
+          );
+        }
+      }
+    }
+  }
+
+  // === 수정한 내용: 부방장 임명·해제는 방장만 확인 후 수행한다 ===
+  Future<void> _changeDeputy(MemberModel member) async {
+    final role = member.role == 'deputy' ? 'member' : 'deputy';
+    final confirmed = await UiUtils.showBeautifulDialog(
+      context: context,
+      title: '부방장 권한 변경',
+      content:
+          '${member.displayName} 님을 ${role == 'deputy' ? '부방장으로 임명' : '일반 멤버로 변경'}하시겠습니까?',
+      confirmText: '변경',
+      confirmColor: AppConstants.primaryColor,
+      icon: Icons.manage_accounts_rounded,
+    );
+    if (!mounted || confirmed != true) return;
+    try {
+      await widget.repository.updateMemberRole(member.id, role);
+      if (mounted) widget.onMembersUpdated();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('부방장 권한을 변경하지 못했습니다. 다시 시도해 주세요.')),
+        );
       }
     }
   }
@@ -122,28 +140,35 @@ class _MemberDrawerState extends State<MemberDrawer> {
   Widget build(BuildContext context) {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final iAmHost = widget.members.any(
-      (m) => m.userId == currentUserId && m.role == 'host',
+      (m) => m.userId == currentUserId && m.isHost,
     );
 
-    List<MemberModel> sortedMembers = List.from(widget.members);
-    if (_sortType == 'joined')
+    final iAmManager = widget.members.any(
+      (m) => m.userId == currentUserId && m.isManager,
+    );
+    // === 수정한 내용: 탈퇴 멤버는 과거 기록에는 남기되 현재 멤버 목록·관리 대상에서 제외한다 ===
+    List<MemberModel> sortedMembers = widget.members
+        .where((m) => m.isActive)
+        .toList();
+    if (_sortType == 'joined') {
       sortedMembers.sort(
         (a, b) => (a.joinedAt ?? '').compareTo(b.joinedAt ?? ''),
       );
-    else if (_sortType == 'name')
+    } else if (_sortType == 'name') {
       sortedMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
-    else if (_sortType == 'rate')
+    } else if (_sortType == 'rate') {
       sortedMembers.sort((a, b) {
         int r = b.attendanceRate.compareTo(a.attendanceRate);
         return r != 0 ? r : (a.joinedAt ?? '').compareTo(b.joinedAt ?? '');
       });
+    }
 
     String sortLabel = _sortType == 'joined'
         ? '참가순'
         : (_sortType == 'name' ? '가나다순' : '참여율순');
 
     return Drawer(
-      backgroundColor: Colors.white, // 🌟 순백색
+      backgroundColor: AppConstants.cardBackground,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -152,48 +177,41 @@ class _MemberDrawerState extends State<MemberDrawer> {
               padding: const EdgeInsets.all(20.0),
               child: Row(
                 children: [
-                  const Text(
-                    '멤버 관리 👥',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  if (widget.onBack != null)
+                    IconButton(
+                      tooltip: '모임 목록으로',
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 20,
+                      ),
+                      onPressed: widget.onBack,
+                    ),
+                  Expanded(
+                    child: Text(
+                      widget.groupName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppConstants.textTitle,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.black87),
-                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppConstants.textTitle,
+                    ),
+                    onPressed: () {
+                      if (widget.onClose != null) {
+                        widget.onClose!();
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
                   ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: ElevatedButton.icon(
-                onPressed: _copyInviteLink,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87, // 🌟 블랙 버튼으로 통일!
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12), // 다이어트
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                icon: const Icon(
-                  Icons.share_outlined,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                label: const Text(
-                  '초대링크 복사하기',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: Colors.white,
-                  ),
-                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -204,8 +222,8 @@ class _MemberDrawerState extends State<MemberDrawer> {
                 children: [
                   Text(
                     '멤버 ${sortedMembers.length}명',
-                    style: TextStyle(
-                      color: Colors.grey[600],
+                    style: const TextStyle(
+                      color: AppConstants.textBody,
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
@@ -213,7 +231,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                   PopupMenuButton<String>(
                     onSelected: (value) => setState(() => _sortType = value),
                     offset: const Offset(0, 30),
-                    color: Colors.white,
+                    color: AppConstants.cardBackground,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -223,9 +241,9 @@ class _MemberDrawerState extends State<MemberDrawer> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey[50],
+                        color: AppConstants.dividerColor,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFEEEEEE)),
+                        border: Border.all(color: AppConstants.borderColor),
                       ),
                       child: Row(
                         children: [
@@ -233,7 +251,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                             sortLabel,
                             style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.black87,
+                              color: AppConstants.textTitle,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -241,7 +259,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                           const Icon(
                             Icons.keyboard_arrow_down_rounded,
                             size: 16,
-                            color: Colors.black87,
+                            color: AppConstants.textTitle,
                           ),
                         ],
                       ),
@@ -265,10 +283,17 @@ class _MemberDrawerState extends State<MemberDrawer> {
               ),
             ),
             const SizedBox(height: 8),
-            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            const Divider(height: 1, color: AppConstants.dividerColor),
+
+            // 🌟 하단 입력창(수동추가)이 통째로 삭제되고 리스트뷰만 넓게 사용합니다.
             Expanded(
               child: sortedMembers.isEmpty
-                  ? const Center(child: Text('멤버가 없어요.'))
+                  ? const Center(
+                      child: Text(
+                        '멤버가 없어요.',
+                        style: TextStyle(color: AppConstants.textCaption),
+                      ),
+                    )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -285,15 +310,15 @@ class _MemberDrawerState extends State<MemberDrawer> {
                         return ListTile(
                           onTap: () => widget.onMemberTap(member),
                           leading: CircleAvatar(
-                            backgroundColor: Colors.grey[100],
+                            backgroundColor: AppConstants.dividerColor,
                             backgroundImage: member.profileImageUrl != null
-                                ? NetworkImage(member.profileImageUrl!)
+                                ? privatePhoto(member.profileImageUrl!)
                                 : null,
                             child: member.profileImageUrl == null
                                 ? Text(
                                     isHost ? '👑' : member.displayName[0],
                                     style: TextStyle(
-                                      color: Colors.grey[800],
+                                      color: AppConstants.textTitle,
                                       fontWeight: FontWeight.bold,
                                       fontSize: isHost ? 14 : 16,
                                     ),
@@ -301,111 +326,82 @@ class _MemberDrawerState extends State<MemberDrawer> {
                                 : null,
                           ),
                           title: Text(
-                            member.displayName + (isMe ? ' (나)' : ''),
+                            // === 수정한 내용: 활성 부방장의 관리 역할을 멤버 목록에 표시한다 ===
+                            member.displayName +
+                                (member.role == 'deputy' ? ' (부방장)' : '') +
+                                (isMe ? ' (나)' : ''),
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
+                              color: AppConstants.textTitle,
                             ),
                           ),
-                          trailing: (isMe || !iAmHost)
+
+                          // 🌟 못생긴 PopupMenuButton 대신 아이콘 터치 시 예쁜 바텀 시트 호출!
+                          trailing:
+                              (isMe ||
+                                  !iAmManager ||
+                                  (!iAmHost && member.role != 'member'))
                               ? const SizedBox.shrink()
-                              : PopupMenuButton<String>(
+                              : IconButton(
                                   icon: const Icon(
                                     Icons.more_vert_rounded,
-                                    color: Colors.grey,
+                                    color: AppConstants.textCaption,
                                   ),
-                                  onSelected: (value) {
-                                    if (value == 'role') _changeRole(member);
-                                    if (value == 'kick') _removeMember(member);
+                                  onPressed: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      backgroundColor:
+                                          AppConstants.cardBackground,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(24),
+                                        ),
+                                      ),
+                                      builder: (context) => MemberManageSheet(
+                                        member: member,
+                                        onKick: () => _removeMember(member),
+                                        canChangeRoles: iAmHost,
+                                        onDeputyRole: () =>
+                                            _changeDeputy(member),
+                                        onChangeRole: () => _changeRole(member),
+                                        // === 수정한 내용: 기존 복수 방장 모임에서도 다른 방장에게 본인 권한을 위임할 수 있게 한다 ===
+                                        onTransferHost: () =>
+                                            _changeRole(member, transfer: true),
+                                      ),
+                                    );
                                   },
-                                  itemBuilder: (context) => [
-                                    PopupMenuItem(
-                                      value: 'role',
-                                      child: Text(
-                                        isHost ? '일반 멤버로 강등' : '방장 권한 부여',
-                                      ),
-                                    ),
-                                    const PopupMenuItem(
-                                      value: 'kick',
-                                      child: Text(
-                                        '내보내기',
-                                        style: TextStyle(color: Colors.red),
-                                      ),
-                                    ),
-                                  ],
                                 ),
                         );
                       },
                     ),
             ),
-            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            // === 수정한 내용: 하단 왼쪽에 나가기, 오른쪽에 작은 공유·설정 아이콘을 배치한다 ===
             Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom > 0
-                    ? MediaQuery.of(context).viewInsets.bottom + 12
-                    : 24,
-                top: 12,
-                left: 16,
-                right: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        hintText: '수동으로 멤버 추가',
-                        hintStyle: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[400],
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFEEEEEE),
-                          ),
-                        ), // 🌟 얇은 테두리
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFEEEEEE),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.black87),
-                        ),
-                      ),
-                      onSubmitted: (_) => _addMember(),
+                  TextButton(
+                    onPressed: widget.onLeave,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppConstants.dangerColor,
+                    ),
+                    child: const Text(
+                      '나가기',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  _isSaving
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.black87,
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        )
-                      : IconButton(
-                          onPressed: _addMember,
-                          icon: const Icon(Icons.person_add_outlined, size: 20),
-                          color: Colors.white,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black87,
-                          ), // 🌟 추가 아이콘 블랙
-                        ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: '모임 공유',
+                    onPressed: widget.onShare,
+                    icon: const Icon(Icons.share_outlined),
+                  ),
+                  IconButton(
+                    tooltip: '모임 설정',
+                    onPressed: widget.onSettings,
+                    icon: const Icon(Icons.settings_rounded),
+                  ),
                 ],
               ),
             ),
