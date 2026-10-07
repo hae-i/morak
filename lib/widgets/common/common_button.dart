@@ -85,6 +85,9 @@ class Button extends StatelessWidget {
           backgroundColor: WidgetStateProperty.all(effectiveColor),
           foregroundColor: WidgetStateProperty.all(effectiveTextColor),
           elevation: WidgetStateProperty.all(0),
+          padding: text.isEmpty && icon != null
+              ? WidgetStateProperty.all(EdgeInsets.zero)
+              : null,
           shape: WidgetStateProperty.all(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(borderRadius),
@@ -99,6 +102,7 @@ class Button extends StatelessWidget {
   }
 
   Widget _buildChild() {
+    if (text.isEmpty && icon != null) return icon!;
     if (icon != null) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,

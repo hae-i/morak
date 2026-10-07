@@ -61,6 +61,7 @@ class CustomTextField extends StatelessWidget {
   final String? errorText;
   final EdgeInsetsGeometry contentPadding;
   final bool isDense;
+  final Color? fillColor;
   final ValueChanged<String>? onSubmitted;
 
   const CustomTextField({
@@ -73,6 +74,7 @@ class CustomTextField extends StatelessWidget {
       vertical: 16,
     ),
     this.isDense = false,
+    this.fillColor,
     this.onSubmitted,
   });
 
@@ -93,7 +95,7 @@ class CustomTextField extends StatelessWidget {
               fontSize: 15,
             ),
             filled: true,
-            fillColor: AppConstants.dividerColor,
+            fillColor: fillColor ?? AppConstants.dividerColor,
             contentPadding: contentPadding,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),

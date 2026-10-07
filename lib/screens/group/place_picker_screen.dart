@@ -190,27 +190,24 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
         child: CustomTextField(
           controller: _query,
           hint: '장소 검색하기',
+          fillColor: Colors.white,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
-            vertical: 9,
+            vertical: 12,
           ),
           onSubmitted: (_) => _search(),
         ),
       ),
       const SizedBox(width: 8),
-      SizedBox.square(
-        dimension: 44,
-        child: IconButton.filled(
-          tooltip: '검색',
-          onPressed: _loading ? null : () => _search(),
-          style: IconButton.styleFrom(
-            backgroundColor: AppConstants.primaryColor,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.zero,
-            shape: const CircleBorder(),
-          ),
+      Tooltip(
+        message: '검색',
+        child: Button(
+          text: '',
+          width: 48,
+          height: 48,
           icon: const Icon(Icons.turn_right_rounded, size: 26),
+          onPressed: _loading ? null : () => _search(),
         ),
       ),
     ],

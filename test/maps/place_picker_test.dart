@@ -274,9 +274,20 @@ void main() {
       expect(find.text('장소 검색하기'), findsOneWidget);
       expect(find.text('검색하거나 지도를 길게 눌러 장소를 선택해 주세요'), findsOneWidget);
       final button = tester.getSize(find.byTooltip('검색'));
-      expect(button.width, 44);
-      expect(button.height, 44);
+      expect(button.width, 48);
+      expect(button.height, 48);
       expect(find.byIcon(Icons.turn_right_rounded), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byIcon(Icons.turn_right_rounded),
+          matching: find.byType(Button),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).decoration?.fillColor,
+        Colors.white,
+      );
       expect(tester.takeException(), isNull);
     },
   );
