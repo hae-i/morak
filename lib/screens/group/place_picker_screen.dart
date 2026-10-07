@@ -178,60 +178,42 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     onLongPress: _manualPin,
   );
 
-  Widget _header() => Material(
-    color: AppConstants.cardBackground,
-    elevation: 3,
-    borderRadius: BorderRadius.circular(16),
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: '뒤로',
-                onPressed: () => Navigator.maybePop(context),
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.arrow_back_rounded, size: 20),
-              ),
-              Text(
-                '만난 장소 찾기',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppConstants.textTitle,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: CustomTextField(
-                  controller: _query,
-                  hint: '가게 이름 또는 주소',
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
-                  onSubmitted: (_) => _search(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Button(
-                text: '검색',
-                width: 68,
-                height: 40,
-                borderRadius: 12,
-                onPressed: _loading ? null : () => _search(),
-              ),
-            ],
-          ),
-        ],
+  Widget _header() => Row(
+    children: [
+      IconButton(
+        tooltip: '뒤로',
+        onPressed: () => Navigator.maybePop(context),
+        icon: const Icon(Icons.arrow_back_rounded),
       ),
-    ),
+      const SizedBox(width: 4),
+      Expanded(
+        child: CustomTextField(
+          controller: _query,
+          hint: '장소 검색하기',
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 9,
+          ),
+          onSubmitted: (_) => _search(),
+        ),
+      ),
+      const SizedBox(width: 8),
+      SizedBox.square(
+        dimension: 44,
+        child: IconButton.filled(
+          tooltip: '검색',
+          onPressed: _loading ? null : () => _search(),
+          style: IconButton.styleFrom(
+            backgroundColor: AppConstants.primaryColor,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.zero,
+            shape: const CircleBorder(),
+          ),
+          icon: const Icon(Icons.turn_right_rounded, size: 26),
+        ),
+      ),
+    ],
   );
 
   List<Widget> _searchContent() => [
@@ -330,7 +312,7 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text(
-                            '가게 이름이나 주소로 검색하거나 지도를 길게 눌러 선택해 주세요.',
+                            '검색하거나 지도를 길게 눌러 장소를 선택해 주세요',
                             style: TextStyle(
                               fontSize: 12,
                               color: AppConstants.textBody,

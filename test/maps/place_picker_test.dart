@@ -60,11 +60,11 @@ void main() {
       ),
     );
     await tester.enterText(find.byType(TextField), 'old');
-    await tester.tap(find.widgetWithText(Button, '검색'));
+    await tester.tap(find.byTooltip('검색'));
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'new');
     await tester.pump();
-    await tester.tap(find.widgetWithText(Button, '검색'));
+    await tester.tap(find.byTooltip('검색'));
     await tester.pump();
     repository.requests[1].complete([candidate('새 장소')]);
     await tester.pumpAndSettle();
@@ -96,7 +96,7 @@ void main() {
         ),
       );
       await tester.enterText(find.byType(TextField), '카페');
-      await tester.tap(find.widgetWithText(Button, '검색'));
+      await tester.tap(find.byTooltip('검색'));
       await tester.pump();
       repository.requests.single.completeError(
         StateError('private provider details'),
@@ -254,7 +254,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets(
-    'map fills the screen under compact search controls and inherits the app font',
+    'map fills the screen under a transparent header and square icon search',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -270,14 +270,13 @@ void main() {
       final map = tester.getRect(find.byType(PlacesMap));
       final scaffold = tester.getRect(find.byType(Scaffold));
       expect(map, scaffold);
-      expect(
-        tester.widget<Button>(find.widgetWithText(Button, '검색')).height,
-        40,
-      );
-      expect(
-        tester.widget<Text>(find.text('만난 장소 찾기')).style?.fontFamily,
-        'AppFont',
-      );
+      expect(find.text('만난 장소 찾기'), findsNothing);
+      expect(find.text('장소 검색하기'), findsOneWidget);
+      expect(find.text('검색하거나 지도를 길게 눌러 장소를 선택해 주세요'), findsOneWidget);
+      final button = tester.getSize(find.byTooltip('검색'));
+      expect(button.width, 44);
+      expect(button.height, 44);
+      expect(find.byIcon(Icons.turn_right_rounded), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
