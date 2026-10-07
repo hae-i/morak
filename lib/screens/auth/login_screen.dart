@@ -24,31 +24,23 @@ class _LoginScreenState extends State<LoginScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  static const _introData = [
-    (
-      icon: Icons.auto_stories_rounded,
-      title: '만남이 지나도, 추억은 남도록',
-      description: '언제, 어디서, 누구와 만났는지.\n사진과 함께 그날의 기억을 모아 보세요.',
-      accent: Color(0xFFF3D2BA),
-    ),
-    (
-      icon: Icons.group_add_rounded,
-      title: '우리의 기록을 한곳에',
-      description: '초대 링크로 소중한 사람들을 초대하고\n같은 모임에서 만남을 기록해 보세요.',
-      accent: Color(0xFFDCE7DC),
-    ),
-    (
-      icon: Icons.photo_album_rounded,
-      title: '사진마다 돌아갈 추억이 있어요',
-      description: '사진첩에서 사진을 둘러보고\n그 사진을 남긴 만남으로 돌아가 보세요.',
-      accent: Color(0xFFE6DFF0),
-    ),
-    (
-      icon: Icons.favorite_rounded,
-      title: '함께한 시간이 쌓여요',
-      description: '함께한 만남과 참석 기록을 돌아보며\n우리 모임만의 이야기를 만들어 가세요.',
-      accent: Color(0xFFF5DEDA),
-    ),
+  // 🌟 앱 소개 데이터 (이미지 경로, 제목, 설명)
+  final List<Map<String, String>> _introData = [
+    {
+      'image': 'assets/images/intro1.png',
+      'title': '모락모락 피어나는 추억 ☁️',
+      'desc': '소중한 사람들과의 만남을\n쉽고 깔끔하게 기록해 보세요.',
+    },
+    {
+      'image': 'assets/images/intro2.png',
+      'title': '함께 완성하는 앨범 📸',
+      'desc': '모임원들이 다같이 사진을 올리고\n대표 사진을 정할 수 있어요.',
+    },
+    {
+      'image': 'assets/images/intro3.png',
+      'title': '출석률과 통계까지 📊',
+      'desc': '누가 가장 모임에 잘 나오는지\n재미있는 통계도 확인해 보세요!',
+    },
   ];
 
   @override
@@ -124,17 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
           SafeArea(
             child: Column(
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 20, bottom: 8),
-                  child: Text(
-                    '모락',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: AppConstants.primaryColor,
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 40),
+
+                // 🌟 1. 앱 소개 슬라이드 영역
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
@@ -142,158 +126,129 @@ class _LoginScreenState extends State<LoginScreen> {
                         setState(() => _currentPage = index),
                     itemCount: _introData.length,
                     itemBuilder: (context, index) {
-                      final intro = _introData[index];
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          return SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 28,
-                              vertical: 20,
-                            ),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                minHeight: (constraints.maxHeight - 40).clamp(
-                                  0.0,
-                                  double.infinity,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 240,
-                                    height: 200,
-                                    decoration: BoxDecoration(
-                                      color: intro.accent,
-                                      borderRadius: BorderRadius.circular(40),
-                                    ),
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Transform.rotate(
-                                          angle: -0.10,
-                                          child: Container(
-                                            width: 152,
-                                            height: 144,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(24),
-                                            ),
-                                            child: Icon(
-                                              intro.icon,
-                                              size: 72,
-                                              color: AppConstants.primaryColor,
-                                            ),
-                                          ),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Image.asset(
+                                _introData[index]['image']!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: AppConstants.borderColor,
                                         ),
-                                        const Positioned(
-                                          right: 22,
-                                          top: 18,
-                                          child: Icon(
-                                            Icons.auto_awesome_rounded,
-                                            color: AppConstants.primaryColor,
-                                            size: 28,
-                                          ),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.image_outlined,
+                                          size: 64,
+                                          color: AppConstants.textCaption,
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 32),
-                                  Text(
-                                    intro.title,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      height: 1.35,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppConstants.textTitle,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    intro.description,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      height: 1.7,
-                                      color: AppConstants.textBody,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
-                          );
-                        },
+                            const SizedBox(height: 48),
+                            Text(
+                              _introData[index]['title']!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppConstants.textTitle,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _introData[index]['desc']!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: AppConstants.textBody,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       );
                     },
                   ),
                 ),
+
+                // 🌟 2. 슬라이드 인디케이터 (점 3개)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     _introData.length,
-                    (index) => Semantics(
-                      label: '앱 소개 ${index + 1}/${_introData.length}',
-                      selected: _currentPage == index,
-                      child: IconButton(
-                        tooltip: '${index + 1}번째 소개',
-                        onPressed: () => _pageController.animateToPage(
-                          index,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                        ),
-                        icon: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          width: _currentPage == index ? 22 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _currentPage == index
-                                ? AppConstants.primaryColor
-                                : AppConstants.secondaryColor,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
+                    (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentPage == index ? 24 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _currentPage == index
+                            ? AppConstants.primaryColor
+                            : AppConstants.dividerColor,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 48),
+
+                // 🌟 3. 하단 구글 로그인 버튼
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                   child: Button(
                     text: 'Google로 시작하기',
                     onPressed: _isLoading ? null : _googleSignIn,
-                    type: ButtonType.outlined,
                     color: AppConstants.cardBackground,
-                    textColor: const Color(0xFF1F1F1F),
-                    height: 52,
-                    borderRadius: 28,
-                    borderSide: const BorderSide(color: Color(0xFF747775)),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    textColor: AppConstants.textTitle,
+                    type: ButtonType.outlined, // 외곽선 있는 버튼으로 깔끔하게
+                    // 🌟 구글 공식 로고 이미지 (assets/images/google_logo.png 필요)
                     icon: Image.asset(
                       'assets/images/google_logo.png',
-                      width: 20,
-                      height: 20,
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.g_mobiledata_rounded,
+                        size: 32,
+                        color: Colors.blue,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          if (_isLoading)
-            Positioned.fill(
-              child: ColoredBox(
-                color: AppConstants.scaffoldBackground.withValues(alpha: 0.9),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: AppConstants.primaryColor,
+
+          // 🌟 4. 로딩 화면 페이드 인/아웃 효과
+          IgnorePointer(
+            ignoring: !_isLoading, // 로딩 중이 아닐 땐 터치 통과
+            child: AnimatedOpacity(
+              opacity: _isLoading ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300), // 0.3초
+              child: Container(
+                color: AppConstants.scaffoldBackground.withOpacity(0.9),
+                child: TickerMode(
+                  enabled: _isLoading,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: AppConstants.primaryColor,
+                    ),
                   ),
                 ),
               ),
             ),
+          ),
         ],
       ),
     );

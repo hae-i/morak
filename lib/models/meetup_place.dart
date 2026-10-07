@@ -22,7 +22,7 @@ class MeetupPlace {
         latitude > 90 ||
         longitude < -180 ||
         longitude > 180 ||
-        !['naver_search', 'manual_pin'].contains(source)) {
+        !['naver_search', 'naver_geocode', 'manual_pin'].contains(source)) {
       throw const FormatException('Invalid place');
     }
   }

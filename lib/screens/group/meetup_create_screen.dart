@@ -18,7 +18,7 @@ import '../../repositories/group_repository.dart';
 import '../../repositories/meetup_repository.dart';
 import '../../models/meetup_model.dart';
 import '../../models/meetup_place.dart';
-import '../../widgets/maps/places_map.dart';
+import '../../widgets/maps/expandable_places_map.dart';
 import 'place_picker_screen.dart';
 import '../../models/member_model.dart';
 import '../../utils/data_refresh.dart';
@@ -87,12 +87,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     }
   }
 
-  Future<void> _pickPlace() async {
+  Future<void> _pickPlace({bool fullScreen = false}) async {
     final place = await Navigator.push<MeetupPlace>(
       context,
       MaterialPageRoute(
         builder: (_) => PlacePickerScreen(
           groupId: widget.groupId,
+          fullScreen: fullScreen,
           initialQuery: _locationController.text,
           initialPlace: _place,
         ),
@@ -592,15 +593,16 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               text: _place == null ? '장소 검색하고 지도에 표시하기' : '지도 장소 변경하기',
               type: ButtonType.outlined,
               icon: const Icon(Icons.map_outlined),
-              onPressed: _isLoading ? null : _pickPlace,
+              onPressed: _isLoading ? null : () => _pickPlace(),
             ),
             if (_place != null) ...[
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: SizedBox(
-                  height: 200,
-                  child: PlacesMap(
+                  height: 280,
+                  child: ExpandablePlacesMap(
+                    onExpand: () => _pickPlace(fullScreen: true),
                     pins: [PlacePin(place: _place!, visits: [])],
                   ),
                 ),

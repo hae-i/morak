@@ -12,6 +12,10 @@ The goal of this repository is to maintain a stable, secure, production-ready mo
 
 # General Working Rules
 
+- Never push directly to `main` or `develop`.
+- For each new task, create a descriptive `feature/<task-description>` branch from the latest `develop` and push work to that feature branch. Continue an existing task on its feature branch.
+- Do not merge or revert changes on `main` or `develop` without explicit user instructions.
+
 - Preserve existing behavior unless the task explicitly requires a behavior change.
 - Do not perform broad refactors unless explicitly requested.
 - Prefer small, focused changes over large rewrites.

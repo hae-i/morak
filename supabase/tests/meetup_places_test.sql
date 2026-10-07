@@ -65,6 +65,7 @@ insert into public.attendances values (
 
 \ir ../migrations/20261005000000_save_meetup_atomic.sql
 \ir ../migrations/20261008000000_meetup_places.sql
+\ir ../migrations/20261009000000_geocoded_places.sql
 
 
 begin;
@@ -93,6 +94,10 @@ begin
     raise exception 'Invalid creation attendance accepted';
   exception when foreign_key_violation then null; end;
   if (select count(*) from public.meetups)<>2 then raise exception 'Failed creation left a record'; end if;
+  perform public.save_meetup_with_place_atomic(jsonb_set(payload,'{place,source}','"naver_geocode"'),members,target);
+  if (select place->>'source' from public.meetups where id=target::uuid)<>'naver_geocode' then
+    raise exception 'Geocoded address did not save';
+  end if;
   perform public.save_meetup_with_place_atomic(payload,members,target);
   select place into previous from public.meetups where id=target::uuid;
   if previous->>'name' <> 'Cafe' then raise exception 'Place did not save'; end if;

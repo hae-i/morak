@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../models/meetup_place.dart';
+import '../../models/place_map_center.dart';
 import '../../services/maps/naver_map_runtime.dart';
 import 'map_unavailable.dart';
 
 class PlacesMap extends StatefulWidget {
   final List<PlacePin> pins;
+  final PlaceMapCenter? initialCenter;
+  final ValueChanged<PlaceMapCenter>? onCameraIdle;
   final ValueChanged<PlacePin>? onPinTap;
   final void Function(double latitude, double longitude)? onLongPress;
   const PlacesMap({
     super.key,
     required this.pins,
+    this.initialCenter,
+    this.onCameraIdle,
     this.onPinTap,
     this.onLongPress,
   });
@@ -52,6 +57,11 @@ class _PlacesMapState extends State<PlacesMap> {
               id: 'place-$i',
               position: NLatLng(pin.place.latitude, pin.place.longitude),
               caption: NOverlayCaption(text: pin.label),
+              icon: const NOverlayImage.fromAssetImage(
+                'assets/images/map_pin.png',
+              ),
+              size: const Size(32, 44),
+              anchor: const NPoint(0.5, 1),
             );
             marker.setOnTapListener((_) {
               if (mounted && generation == _generation) {
@@ -102,9 +112,12 @@ class _PlacesMapState extends State<PlacesMap> {
         options: NaverMapViewOptions(
           initialCameraPosition: NCameraPosition(
             target: first == null
-                ? const NLatLng(37.5666, 126.979)
+                ? NLatLng(
+                    widget.initialCenter?.latitude ?? 37.5666,
+                    widget.initialCenter?.longitude ?? 126.979,
+                  )
                 : NLatLng(first.latitude, first.longitude),
-            zoom: 15,
+            zoom: widget.initialCenter?.zoom ?? 15,
           ),
           locationButtonEnable: false,
           consumeSymbolTapEvents: false,
@@ -114,6 +127,23 @@ class _PlacesMapState extends State<PlacesMap> {
           if (!mounted) return;
           _controller = controller;
           _updatePins();
+        },
+        onCameraIdle: () async {
+          final controller = _controller;
+          if (controller == null || widget.onCameraIdle == null) return;
+          try {
+            final camera = await controller.getCameraPosition();
+            if (!mounted || controller != _controller) return;
+            widget.onCameraIdle?.call(
+              PlaceMapCenter(
+                camera.target.latitude,
+                camera.target.longitude,
+                zoom: camera.zoom,
+              ),
+            );
+          } catch (_) {
+            // Keep the last known search center if the native map is closing.
+          }
         },
         onMapLongTapped: widget.onLongPress == null
             ? null

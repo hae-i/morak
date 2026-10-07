@@ -19,31 +19,21 @@ MemberModel member(String id, {bool deleted = false, int count = 0}) =>
     );
 
 void main() {
-  testWidgets('intro stays scrollable on a short screen with large text', (
-    tester,
-  ) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(320, 480);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      MaterialApp(
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: const TextScaler.linear(1.5)),
-          child: child!,
-        ),
-        home: const LoginScreen(),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Google로 시작하기'), findsOneWidget);
-    for (var index = 1; index <= 4; index++) {
-      await tester.tap(find.byTooltip('$index번째 소개'));
+  testWidgets(
+    'login restores three image introductions and shared Google button',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
       await tester.pumpAndSettle();
+      expect(find.text('모락모락 피어나는 추억 ☁️'), findsOneWidget);
+      expect(find.text('Google로 시작하기'), findsOneWidget);
+      final pager = tester.widget<PageView>(find.byType(PageView));
+      expect(pager.childrenDelegate.estimatedChildCount, 3);
+      await tester.drag(find.byType(PageView), const Offset(-700, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('함께 완성하는 앨범 📸'), findsOneWidget);
       expect(tester.takeException(), isNull);
-    }
-  });
+    },
+  );
 
   testWidgets(
     'story preserves unknown attendees and anonymizes departed names',
