@@ -176,3 +176,55 @@ test('shop-name filtering allows region-qualified queries without accepting menu
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).items.map((item: {name: string}) => item.name), ['만주']);
 });
+
+test('unset search provider supports both Developers and API HUB keys without logging raw errors', async () => {
+  const hosts: string[] = [];
+  const response = await handleSearch(request(), {...defaults, fetcher: async (url) => {
+    const host = new URL(String(url)).host; hosts.push(host);
+    if (host === 'openapi.naver.com') return new Response('secret provider detail', {status: 401});
+    return Response.json({items: [{title: '카페', mapx: '127.1', mapy: '37.5'}]});
+  }});
+  assert.equal(response.status, 200);
+  assert.deepEqual(hosts, ['openapi.naver.com', 'naverapihub.apigw.ntruss.com']);
+  assert.equal((await response.json()).items[0].latitude, 37.5);
+});
+
+test('address search supports legacy Maps credentials after the new endpoint rejects authentication', async () => {
+  const hosts: string[] = [];
+  const response = await handleSearch(request({group_id: groupId, query: '올림픽로 10', mode: 'auto'}), {
+    ...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      const host = new URL(String(url)).host; hosts.push(host);
+      if (host === 'maps.apigw.ntruss.com') return new Response('private key details', {status: 403});
+      return Response.json({status: 'OK', addresses: [{roadAddress: '서울 송파구 올림픽로 10', x: '127.1', y: '37.5'}]});
+    }});
+  assert.equal(response.status, 200);
+  assert.deepEqual(hosts, ['maps.apigw.ntruss.com', 'naveropenapi.apigw.ntruss.com']);
+});
+
+test('failed fallback address lookup keeps primary search empty instead of failing the whole search', async () => {
+  const response = await handleSearch(request({group_id: groupId, query: '만주', mode: 'auto'}), {
+    ...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      if (new URL(String(url)).pathname.endsWith('local.json')) return Response.json({items: []});
+      return new Response('private map authentication details', {status: 403});
+    }});
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {items: [], warning: 'address_search_auth_failed'});
+});
+
+test('quota failures do not trigger provider fallback and are distinct from provider authentication failures', async () => {
+  let calls = 0;
+  const response = await handleSearch(request(), {...defaults, fetcher: async () => {
+    calls++; return new Response('quota', {status: 429});
+  }});
+  assert.equal(response.status, 429); assert.equal(calls, 1);
+  const invalid = await handleSearch(request(), {...defaults, fetcher: async () => new Response('private secret', {status: 401})});
+  assert.equal(invalid.status, 502);
+  assert.deepEqual(await invalid.json(), {error: 'place_search_auth_failed'});
+});
+
+test('a shop name ending in a region suffix is still matched as a whole name', async () => {
+  const response = await handleSearch(request({group_id: groupId, query: '아무도', mode: 'auto'}), {
+    ...defaults, fetcher: async () => Response.json({items: [{title: '아무도', mapx: '1271000000', mapy: '375000000'}]})});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).items[0].name, '아무도');
+});

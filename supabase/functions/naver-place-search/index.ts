@@ -2,7 +2,10 @@ import {createClient} from 'npm:@supabase/supabase-js@2';
 import {handleSearch} from './handler.ts';
 
 Deno.serve((request: Request) => handleSearch(request, {
-  searchProvider: Deno.env.get('NAVER_SEARCH_PROVIDER') === 'legacy' ? 'legacy' : 'hub',
+  searchProvider: Deno.env.get('NAVER_SEARCH_PROVIDER') === 'legacy' ? 'legacy' :
+    Deno.env.get('NAVER_SEARCH_PROVIDER') === 'hub' ? 'hub' : undefined,
+  mapProvider: Deno.env.get('NAVER_MAP_PROVIDER') === 'legacy' ? 'legacy' :
+    Deno.env.get('NAVER_MAP_PROVIDER') === 'maps' ? 'maps' : undefined,
   clientId: Deno.env.get('NAVER_SEARCH_CLIENT_ID'),
   clientSecret: Deno.env.get('NAVER_SEARCH_CLIENT_SECRET'),
   mapClientId: Deno.env.get('NAVER_MAP_CLIENT_ID'),

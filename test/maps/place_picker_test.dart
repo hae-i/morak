@@ -291,4 +291,58 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'manual pin clears on user movement while automatic camera positioning keeps it',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlacePickerScreen(groupId: 'group', repository: _Search()),
+        ),
+      );
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onLongPress!(
+        37.5,
+        127.1,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('직접 선택한 장소'), findsOneWidget);
+      expect(
+        tester.widget<PlacesMap>(find.byType(PlacesMap)).pins,
+        hasLength(1),
+      );
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onCameraIdle!(
+        const PlaceMapCenter(37.5, 127.1),
+      );
+      await tester.pump();
+      expect(find.text('직접 선택한 장소'), findsOneWidget);
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onUserMove!();
+      await tester.pumpAndSettle();
+      expect(find.text('직접 선택한 장소'), findsNothing);
+      expect(tester.widget<PlacesMap>(find.byType(PlacesMap)).pins, isEmpty);
+      expect(
+        tester
+            .widget<Button>(find.widgetWithText(Button, '이 장소 선택하기'))
+            .onPressed,
+        isNull,
+      );
+      expect(tester.getSize(find.byTooltip('뒤로')).width, 32);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('moving the map keeps a searched place selected', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlacePickerScreen(
+          groupId: 'group',
+          repository: _Search(),
+          initialPlace: candidate('검색한 장소'),
+        ),
+      ),
+    );
+    tester.widget<PlacesMap>(find.byType(PlacesMap)).onUserMove!();
+    await tester.pumpAndSettle();
+    expect(find.text('검색한 장소'), findsOneWidget);
+    expect(tester.widget<PlacesMap>(find.byType(PlacesMap)).pins, hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
 }

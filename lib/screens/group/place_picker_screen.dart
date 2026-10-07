@@ -170,22 +170,44 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     ),
   );
 
+  void _clearManualPinOnMove() {
+    if (_selected?.source != 'manual_pin') return;
+    _debounce?.cancel();
+    _generation++;
+    setState(() {
+      _selected = null;
+      _results = [];
+      _searched = false;
+      _error = null;
+      _loading = false;
+    });
+  }
+
   Widget _map() => PlacesMap(
     pins: _pins,
     initialCenter: _center,
     onCameraIdle: (center) => _center = center,
+    onUserMove: _clearManualPinOnMove,
     onPinTap: (pin) => _select(pin.place),
     onLongPress: _manualPin,
   );
 
   Widget _header() => Row(
     children: [
-      IconButton(
-        tooltip: '뒤로',
-        onPressed: () => Navigator.maybePop(context),
-        icon: const Icon(Icons.arrow_back_rounded),
+      SizedBox(
+        width: 32,
+        height: 40,
+        child: IconButton(
+          tooltip: '뒤로',
+          padding: EdgeInsets.zero,
+          style: IconButton.styleFrom(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: () => Navigator.maybePop(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
       ),
-      const SizedBox(width: 4),
+      const SizedBox(width: 2),
       Expanded(
         child: CustomTextField(
           controller: _query,

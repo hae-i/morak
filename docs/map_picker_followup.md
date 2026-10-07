@@ -1,3 +1,20 @@
+# 최신 수정: 검색 인증 호환·직접 선택 해제·아이콘 복원
+
+사용자는 실패 안내가 ‘장소를 검색하지 못했습니다. 잠시 후 다시 시도해주세요.’이며 Geocoding은 처음부터 켜져 있었다고 확인했다. 실제 운영 인증 응답과 키 발급 상품은 저장소에서 확인할 수 없어 원인을 확정하지 않았다.
+
+- 서버 기본값을 API HUB 고정에서 호환 조회로 변경했다. 검색 상품 설정이 없으면 Developers 경로부터 조회하고, 인증 거절(401/403)에 한해서 API HUB 경로로 재조회한다. Maps도 현재/기존 Geocoding 경로를 같은 방식으로 지원한다. 명시한 provider 설정은 그대로 따른다. 요청 제한이나 다른 오류에는 인증 경로를 재시도하지 않는다.
+- 주소 보완 조회가 실패해도 먼저 성공한 장소 조회 전체를 실패 처리하지 않는다. 인증 실패와 검색 제한 SQL 오류를 구분하여 안내한다. 서버 원본 응답이나 키는 노출하지 않는다.
+- 뒤로 버튼 영역은 너비 32px, 검색창과의 간격은 2px로 줄였다. 직접 선택한 핀은 사용자가 지도를 움직이면 핀·선택 문구를 해제한다. 검색 결과 선택과 프로그램에 의한 카메라 이동은 선택을 유지한다.
+- Android 아이콘 리소스와 Manifest는 변경 전 `3d9d9d0` 원본으로 복원했다. 확대 전경과 적응형 아이콘 생성 설정을 제거했다. 실제 Samsung 런처 표시는 실기기 확인이 남는다.
+
+검증: Flutter 전체 테스트 125개와 검색 서버 테스트 19개 통과, 웹 릴리스 빌드 성공. Flutter 분석 오류/경고 0, 기존 info 28개. Android XML 파싱과 원본 리소스 일치를 확인했다. Android SDK가 없어 네이티브 빌드와 실제 지도/런처 표시는 미검증이다.
+
+**추가 SQL은 필요 없으며 검색 함수를 다시 배포해야 한다.** 기존 장소 저장 SQL은 적용된 상태여야 한다. 실제 서버 배포와 네이버 인증 검증은 이번 작업에서 수행하지 않았다.
+
+```bash
+npx supabase functions deploy naver-place-search --project-ref <프로젝트-ID> --no-verify-jwt --use-api
+```
+
 # 참고 화면에 맞춘 검색창 수정
 
 상단 ‘만난 장소 찾기’ 제목과 검색창을 감싸는 흰색 패널을 제거했다. 지도 위에 뒤로 버튼·공통 입력창·48×48 공통 Button 디자인의 엔터 모양 검색 버튼만 표시한다. 입력 힌트는 ‘장소 검색하기’, 하단 안내는 ‘검색하거나 지도를 길게 눌러 장소를 선택해 주세요’다. 검색창은 흰색으로 표시하고 세로 패딩을 9px에서 12px로 늘렸다. 이 수정은 앱 화면만 변경한다. 관련 화면 테스트 12개 통과, 분석 오류/경고 0(info 28개).
@@ -78,9 +95,10 @@ Supabase Dashboard → Edge Functions → Secrets에 설정한다. **값 자체�
 |---|---|
 | `NAVER_SEARCH_CLIENT_ID` | API HUB 지역 검색 Client ID |
 | `NAVER_SEARCH_CLIENT_SECRET` | API HUB 지역 검색 Client Secret |
-| `NAVER_SEARCH_PROVIDER` | 기본 `hub`. 이미 발급받은 Developers 키를 사용하는 경우만 `legacy` |
+| `NAVER_SEARCH_PROVIDER` | 선택 사항. 미설정 시 인증 경로 호환 조회. 고정하려면 Developers는 `legacy`, API HUB는 `hub` |
 | `NAVER_MAP_CLIENT_ID` | Maps Geocoding/Reverse Geocoding 인증 식별자 |
 | `NAVER_MAP_CLIENT_SECRET` | Maps 서버 API 인증 secret |
+| `NAVER_MAP_PROVIDER` | 선택 사항. 미설정 시 현재/기존 Maps 경로 호환 조회. 고정하려면 `maps` 또는 `legacy` |
 
 Maps 상품의 Geocoding/Reverse Geocoding과 검색 상품의 지역 검색 사용 설정을 각각 확인한다. 둘의 인증 설정을 자동으로 같다고 가정하지 않는다. 앱 `.env`에는 지도 표시용 `NAVER_MAP_CLIENT_ID`만 사용하며, 검색/Maps Client Secret은 서버에만 넣는다. 앱에 secret을 이미 포함했다면 앱에서 제거하고 해당 키를 재발급한 뒤 서버에 새 값을 설정한다. 앱에 배포한 값은 `.env` 파일이어도 비밀로 유지되지 않는다.
 

@@ -43,11 +43,17 @@ class PlaceSearchRepository {
       final details = error.details;
       final code = details is Map ? details['error'] : null;
       final message = switch (code) {
+        'place_search_auth_failed' => '네이버 장소 검색 인증을 확인해 주세요.',
+        'address_search_auth_failed' =>
+          '네이버 주소 검색 키와 Geocoding 사용 설정을 확인해 주세요.',
+        'search_quota_unavailable' =>
+          '검색 제한 설정을 확인해 주세요. 장소 저장용 SQL 적용이 필요합니다.',
         'address_search_not_configured' =>
           '주소 검색을 아직 사용할 수 없어요. 장소 이름으로 검색해 주세요.',
         'nearby_search_not_configured' =>
           '장소 검색을 아직 사용할 수 없어요. 잠시 후 다시 시도해 주세요.',
         _ => switch (error.status) {
+          400 => '검색 요청을 처리하지 못했습니다. 최신 검색 함수로 다시 배포해 주세요.',
           401 => '로그인이 만료되었어요. 다시 로그인해 주세요.',
           403 => '이 모임의 장소를 검색할 권한이 없어요.',
           404 || 503 => '장소 검색 서비스를 아직 사용할 수 없어요.',
@@ -66,6 +72,12 @@ class PlaceSearchRepository {
         data['items'] is! List ||
         (data['items'] as List).length > 5) {
       throw const FormatException('Invalid search response');
+    }
+    if ((data['items'] as List).isEmpty &&
+        data['warning'] == 'address_search_auth_failed') {
+      throw const PlaceSearchException(
+        '일치하는 상호명이 없고, 주소 검색 인증도 실패했습니다. 주소 검색 키와 Geocoding 사용 설정을 확인해 주세요.',
+      );
     }
     return (data['items'] as List).map((item) {
       if (item is! Map<String, dynamic>) {

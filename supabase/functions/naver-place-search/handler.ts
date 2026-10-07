@@ -7,6 +7,8 @@ export interface Dependencies {
   mapClientId?: string;
   mapClientSecret?: string;
   searchProvider?: 'legacy' | 'hub';
+  mapProvider?: 'legacy' | 'maps';
+  signal?: AbortSignal;
   fetcher?: typeof fetch;
 }
 const cors = {
@@ -26,7 +28,8 @@ type Center = {latitude: number; longitude: number};
 class SearchFailure extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(status: number, code: string) { super(code); this.status = status; this.code = code; }
+  readonly upstreamStatus?: number;
+  constructor(status: number, code: string, upstreamStatus?: number) { super(code); this.status = status; this.code = code; this.upstreamStatus = upstreamStatus; }
 }
 const mapHeaders = (deps: Dependencies) => ({
   'x-ncp-apigw-api-key-id': deps.mapClientId!,
@@ -34,9 +37,10 @@ const mapHeaders = (deps: Dependencies) => ({
 });
 async function provider(url: URL, headers: Record<string, string>, deps: Dependencies, timeout = 5000) {
   const response = await (deps.fetcher ?? fetch)(url, {
-    headers, signal: AbortSignal.timeout(timeout), redirect: 'error',
+    headers, signal: deps.signal ? AbortSignal.any([deps.signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout), redirect: 'error',
   });
-  if (!response.ok) throw new SearchFailure(response.status === 429 ? 429 : 502, 'search_unavailable');
+  if (!response.ok) throw new SearchFailure(response.status === 429 ? 429 : 502,
+    response.status === 401 || response.status === 403 ? 'provider_auth_failed' : 'search_unavailable', response.status);
   return response.json();
 }
 function coordinates(latitude: number, longitude: number) {
@@ -45,12 +49,30 @@ function coordinates(latitude: number, longitude: number) {
       (latitude === 0 && longitude === 0)) throw new Error('Invalid coordinates');
   return {latitude, longitude};
 }
+async function compatibleProvider(
+  urls: URL[], headers: Record<string, string>[], deps: Dependencies, code: string,
+) {
+  for (let i = 0; i < urls.length; i++) {
+    try { return {data: await provider(urls[i], headers[i], deps), index: i}; }
+    catch (error) {
+      if (!(error instanceof SearchFailure) || error.code !== 'provider_auth_failed') throw error;
+      if (i === urls.length - 1) throw new SearchFailure(502, code, error.upstreamStatus);
+    }
+  }
+  throw new Error('No provider configured');
+}
+async function mapsProvider(url: URL, deps: Dependencies) {
+  const current = new URL(url);
+  const legacy = new URL(url); legacy.hostname = 'naveropenapi.apigw.ntruss.com';
+  const urls = deps.mapProvider === 'legacy' ? [legacy] : deps.mapProvider === 'maps' ? [current] : [current, legacy];
+  return (await compatibleProvider(urls, urls.map(() => mapHeaders(deps)), deps, 'address_search_auth_failed')).data;
+}
 async function searchAddress(query: string, center: Center | undefined, deps: Dependencies) {
   const url = new URL('https://maps.apigw.ntruss.com/map-geocode/v2/geocode');
   url.searchParams.set('query', query);
   url.searchParams.set('count', '5');
   if (center) url.searchParams.set('coordinate', `${center.longitude},${center.latitude}`);
-  const data = await provider(url, mapHeaders(deps), deps);
+  const data = await mapsProvider(url, deps);
   if (data.status !== 'OK' || !Array.isArray(data.addresses) || data.addresses.length > 5) throw new Error('Invalid addresses');
   return data.addresses.map((item: Record<string, unknown>) => {
     const address = plainText(item.roadAddress, 500) || plainText(item.jibunAddress, 500);
@@ -93,12 +115,18 @@ async function searchPlaces(query: string, center: Center | undefined, deps: Dep
   if (!nameOnly && center && !/[가-힣]{2,}(시|군|구|동|읍|면|로|길)(\s|$)/.test(query)) {
     query = `${await regionAt(center, deps)} ${query}`;
   }
-  const hub = deps.searchProvider === 'hub';
-  const url = new URL(hub ? 'https://naverapihub.apigw.ntruss.com/search/v1/local' : 'https://openapi.naver.com/v1/search/local.json');
-  url.search = new URLSearchParams({query, display: '5', start: '1', sort: 'random'}).toString();
-  const data = await provider(url, hub
+  const candidates = deps.searchProvider ? [deps.searchProvider] : ['legacy', 'hub'];
+  const urls = candidates.map((candidate) => {
+    const url = new URL(candidate === 'hub' ? 'https://naverapihub.apigw.ntruss.com/search/v1/local' : 'https://openapi.naver.com/v1/search/local.json');
+    url.search = new URLSearchParams({query, display: '5', start: '1', sort: 'random'}).toString();
+    return url;
+  });
+  const headers: Record<string, string>[] = candidates.map((candidate) => candidate === 'hub'
     ? {'x-ncp-apigw-api-key-id': deps.clientId!, 'x-ncp-apigw-api-key': deps.clientSecret!}
-    : {'X-Naver-Client-Id': deps.clientId!, 'X-Naver-Client-Secret': deps.clientSecret!}, deps);
+    : {'X-Naver-Client-Id': deps.clientId!, 'X-Naver-Client-Secret': deps.clientSecret!});
+  const result = await compatibleProvider(urls, headers, deps, 'place_search_auth_failed');
+  const data = result.data;
+  const hub = candidates[result.index] === 'hub';
   if (!Array.isArray(data.items) || data.items.length > 5) throw new Error('Invalid places');
   const items = data.items.map((item: Record<string, unknown>) => {
     const coordinate = (value: unknown) => ((typeof value === 'string' && /^-?\d+$/.test(value)) ||
@@ -122,7 +150,7 @@ async function searchPlaces(query: string, center: Center | undefined, deps: Dep
   });
   const normalized = (text: string) => text.normalize('NFKC').toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
   const terms = nameTerms(originalQuery).map(normalized).filter(Boolean);
-  const matches = nameOnly ? items.filter((item: {name: string}) => terms.length > 0 && terms.every((term) => normalized(item.name).includes(term))) : items;
+  const matches = nameOnly ? items.filter((item: {name: string}) => (normalized(item.name).includes(normalized(originalQuery)) || (terms.length > 0 && terms.every((term) => normalized(item.name).includes(term))))) : items;
   if (center) matches.sort((a: Center, b: Center) => distance(a, center) - distance(b, center));
   return matches;
 }
@@ -181,15 +209,21 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
   }
   try {
     if (!await deps.allowSearch(token)) return json(429, {error: 'search_rate_limited'});
-  } catch { return json(503, {error: 'search_unavailable'}); }
+  } catch { return json(503, {error: 'search_quota_unavailable'}); }
 
+  const runtime = {...deps, signal: AbortSignal.timeout(10000)};
   try {
-    let items = addressFirst ? await searchAddress(query, center, deps) : await searchPlaces(query, center, deps, nameOnly);
+    let items = addressFirst ? await searchAddress(query, center, runtime) : await searchPlaces(query, center, runtime, nameOnly);
+    let warning: string | undefined;
     if (mode === 'auto' && items.length === 0) {
-      if (addressFirst && deps.clientId && deps.clientSecret) items = await searchPlaces(query, center, deps, true);
-      else if (!addressFirst && deps.mapClientId && deps.mapClientSecret) items = await searchAddress(query, center, deps);
+      try {
+        if (addressFirst && deps.clientId && deps.clientSecret) items = await searchPlaces(query, center, runtime, true);
+        else if (!addressFirst && deps.mapClientId && deps.mapClientSecret) items = await searchAddress(query, center, runtime);
+      } catch (error) {
+        warning = error instanceof SearchFailure ? error.code : 'fallback_search_unavailable';
+      }
     }
-    return json(200, {items});
+    return json(200, {items, ...(warning ? {warning} : {})});
   } catch (error) {
     return error instanceof SearchFailure ? json(error.status, {error: error.code}) : json(502, {error: 'search_unavailable'});
   }

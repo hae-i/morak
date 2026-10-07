@@ -10,6 +10,7 @@ class PlacesMap extends StatefulWidget {
   final List<PlacePin> pins;
   final PlaceMapCenter? initialCenter;
   final ValueChanged<PlaceMapCenter>? onCameraIdle;
+  final VoidCallback? onUserMove;
   final ValueChanged<PlacePin>? onPinTap;
   final void Function(double latitude, double longitude)? onLongPress;
   const PlacesMap({
@@ -17,6 +18,7 @@ class PlacesMap extends StatefulWidget {
     required this.pins,
     this.initialCenter,
     this.onCameraIdle,
+    this.onUserMove,
     this.onPinTap,
     this.onLongPress,
   });
@@ -127,6 +129,12 @@ class _PlacesMapState extends State<PlacesMap> {
           if (!mounted) return;
           _controller = controller;
           _updatePins();
+        },
+        onCameraChange: (reason, _) {
+          if (reason == NCameraUpdateReason.gesture ||
+              reason == NCameraUpdateReason.control) {
+            widget.onUserMove?.call();
+          }
         },
         onCameraIdle: () async {
           final controller = _controller;
