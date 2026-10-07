@@ -7,6 +7,7 @@ import '../../locator.dart';
 import '../../models/meetup_place.dart';
 import '../../models/place_map_center.dart';
 import '../../repositories/place_search_repository.dart';
+import '../../services/maps/current_map_location.dart';
 import '../../utils/ui_utils.dart';
 import '../../widgets/common/common_button.dart';
 import '../../widgets/common/common_widgets.dart';
@@ -21,6 +22,7 @@ class PlacePickerScreen extends StatefulWidget {
   final PlaceMapCenter? initialCenter;
   final List<MeetupPlace> initialResults;
   final String initialMode;
+  final Future<PlaceMapCenter?> Function()? locationLoader;
   const PlacePickerScreen({
     super.key,
     required this.groupId,
@@ -31,6 +33,7 @@ class PlacePickerScreen extends StatefulWidget {
     this.initialCenter,
     this.initialResults = const [],
     this.initialMode = 'auto',
+    this.locationLoader,
   });
   @override
   State<PlacePickerScreen> createState() => _PlacePickerScreenState();
@@ -38,11 +41,21 @@ class PlacePickerScreen extends StatefulWidget {
 
 class _PlacePickerScreenState extends State<PlacePickerScreen> {
   late final TextEditingController _query;
+  late final TextEditingController _placeName;
   late final PlaceSearchRepository _repository;
   late String _lastQuery;
   Timer? _debounce;
   MeetupPlace? _selected;
   PlaceMapCenter? _center;
+  PlaceMapCenter? _initialMapCenter;
+  Future<PlaceMapCenter?> Function()? _readCenter;
+  bool _locating = false;
+  String? _locationNotice;
+  bool _hasSearch = false;
+  int _viewRevision = 0;
+  int _searchRevision = 0;
+  bool _resolvingAddress = false;
+  String? _addressError;
   List<MeetupPlace> _results = [];
   bool _loading = false;
   String? _error;
@@ -58,10 +71,54 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     _mode = widget.initialMode;
     _results = List.of(widget.initialResults);
     _searched = _results.isNotEmpty;
-    _center = widget.initialCenter;
+    _center =
+        widget.initialCenter ??
+        (_selected == null
+            ? null
+            : PlaceMapCenter(_selected!.latitude, _selected!.longitude));
+    _initialMapCenter = _center;
+    _placeName = TextEditingController(text: _selected?.name ?? '');
+    _hasSearch = _searched;
     _lastQuery = widget.initialQuery;
     _query = TextEditingController(text: widget.initialQuery)
       ..addListener(_queryChanged);
+    if (_center == null) {
+      _locating = true;
+      _initializeLocation();
+    }
+  }
+
+  Future<void> _initializeLocation() async {
+    PlaceMapCenter? center;
+    try {
+      center = await (widget.locationLoader ?? currentMapLocation)();
+    } catch (_) {
+      center = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (_viewRevision == 0 &&
+          !_hasSearch &&
+          _selected == null &&
+          center != null) {
+        _center = center;
+        _initialMapCenter = center;
+      }
+      if (center == null && _viewRevision == 0) {
+        _locationNotice = '현재 위치를 확인하지 못했어요. 지도를 이동해 검색해 주세요.';
+      }
+    });
+    if (_query.text.trim().length >= 2 &&
+        _query.text != widget.initialQuery &&
+        !_hasSearch &&
+        _selected == null) {
+      _debounce?.cancel();
+      _debounce = Timer(
+        const Duration(milliseconds: 700),
+        () => _search(automatic: true),
+      );
+    }
   }
 
   void _queryChanged() {
@@ -73,6 +130,7 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
       _loading = false;
       _error = null;
       _searched = false;
+      _hasSearch = false;
       _results = [];
     });
     if (_query.text.trim().length >= 2 && _query.text.trim().length <= 100) {
@@ -88,12 +146,13 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     _debounce?.cancel();
     _generation++;
     _query.dispose();
+    _placeName.dispose();
     super.dispose();
   }
 
   Future<void> _search({bool automatic = false}) async {
     _debounce?.cancel();
-    if (_loading) return;
+    if (_loading || _locating) return;
     final query = _query.text.trim();
     if (query.isEmpty || query.length > 100) {
       if (!automatic) {
@@ -112,16 +171,28 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
       _error = null;
     });
     try {
+      final currentCenter = await _readCenter?.call();
+      if (!mounted || generation != _generation) return;
+      final center = currentCenter ?? _center;
+      final revision = _viewRevision;
       final places = await _repository.search(
         groupId: widget.groupId,
         query: query,
         mode: _mode,
-        center: _center,
+        center: center,
       );
       if (!mounted || generation != _generation) return;
       setState(() {
+        _center = center;
         _results = places;
+        _selected = null;
+        _placeName.clear();
+        _resolvingAddress = false;
+        _addressError = null;
         _searched = true;
+        _hasSearch = true;
+        _searchRevision = revision;
+        _locationNotice = null;
       });
     } catch (error) {
       if (mounted && generation == _generation) {
@@ -144,6 +215,9 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     FocusScope.of(context).unfocus();
     setState(() {
       _selected = place;
+      _placeName.text = place.name;
+      _resolvingAddress = false;
+      _addressError = null;
       _loading = false;
       _error = null;
       _results = [];
@@ -155,20 +229,67 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
       .map((p) => PlacePin(place: p, visits: []))
       .toList();
 
-  void _manualPin(double latitude, double longitude) => _select(
-    MeetupPlace(
-      name: _query.text.trim().isEmpty
-          ? '직접 선택한 장소'
-          : _query.text.trim().substring(
-              0,
-              _query.text.trim().length.clamp(0, 200),
-            ),
-      address: '',
-      latitude: latitude,
-      longitude: longitude,
-      source: 'manual_pin',
-    ),
-  );
+  void _manualPin(double latitude, double longitude) {
+    _select(
+      MeetupPlace(
+        name: '직접 선택한 장소',
+        address: '',
+        latitude: latitude,
+        longitude: longitude,
+        source: 'manual_pin',
+      ),
+    );
+    _resolvePinAddress();
+  }
+
+  Future<void> _resolvePinAddress() async {
+    final pin = _selected;
+    if (pin == null || pin.source != 'manual_pin' || _resolvingAddress) return;
+    final generation = _generation;
+    setState(() {
+      _resolvingAddress = true;
+      _addressError = null;
+    });
+    try {
+      final place = await _repository.reverseGeocode(
+        groupId: widget.groupId,
+        center: PlaceMapCenter(pin.latitude, pin.longitude),
+      );
+      if (!mounted ||
+          generation != _generation ||
+          _selected?.coordinateKey != pin.coordinateKey) {
+        return;
+      }
+      setState(() {
+        // Use the name currently being edited; a late address must not replace it.
+        final name = _placeName.text.trim();
+        _selected = place.withName(
+          name.isNotEmpty && name.length <= 200 ? name : pin.name,
+        );
+      });
+    } catch (error) {
+      if (mounted && generation == _generation) {
+        setState(
+          () => _addressError = error is PlaceSearchException
+              ? error.message
+              : '주소를 가져오지 못했어요. 이름을 정해 핀 위치만 저장하거나 다시 시도해 주세요.',
+        );
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _resolvingAddress = false);
+      }
+    }
+  }
+
+  void _onUserMove() {
+    if (!mounted) return;
+    setState(() {
+      _viewRevision++;
+      _locationNotice = null;
+    });
+    _clearManualPinOnMove();
+  }
 
   void _clearManualPinOnMove() {
     if (_selected?.source != 'manual_pin') return;
@@ -176,6 +297,9 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     _generation++;
     setState(() {
       _selected = null;
+      _placeName.clear();
+      _resolvingAddress = false;
+      _addressError = null;
       _results = [];
       _searched = false;
       _error = null;
@@ -185,9 +309,11 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
 
   Widget _map() => PlacesMap(
     pins: _pins,
-    initialCenter: _center,
+    initialCenter: _initialMapCenter,
+    fitPins: false,
+    onCenterReaderReady: (reader) => _readCenter = reader,
     onCameraIdle: (center) => _center = center,
-    onUserMove: _clearManualPinOnMove,
+    onUserMove: _onUserMove,
     onPinTap: (pin) => _select(pin.place),
     onLongPress: _manualPin,
   );
@@ -229,14 +355,16 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
           width: 48,
           height: 48,
           icon: const Icon(Icons.turn_right_rounded, size: 26),
-          onPressed: _loading ? null : () => _search(),
+          onPressed: _loading || _locating ? null : () => _search(),
         ),
       ),
     ],
   );
 
   List<Widget> _searchContent() => [
-    if (_loading) const LinearProgressIndicator(),
+    if (_loading || _locating) const LinearProgressIndicator(),
+    if (_locationNotice != null)
+      Text(_locationNotice!, style: const TextStyle(fontSize: 12)),
     if (_error != null) ...[
       Text(_error!, style: const TextStyle(color: AppConstants.textBody)),
       const SizedBox(height: 8),
@@ -259,26 +387,59 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => _select(place),
       ),
-    if (_selected != null)
+    if (_selected != null) ...[
       ListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
         minVerticalPadding: 2,
         leading: const Icon(Icons.place_rounded, color: Color(0xFFE8474F)),
-        title: Text(_selected!.name),
+        title: const Text('선택한 장소'),
         subtitle: Text(
           _selected!.address.isEmpty
-              ? '직접 선택한 위치 · 지역 순위에서 제외'
+              ? (_resolvingAddress ? '주소 확인 중…' : '주소 없이 핀 위치로 저장할 수 있어요')
               : _selected!.address,
         ),
       ),
+      CustomTextField(
+        controller: _placeName,
+        hint: '장소 이름',
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+      ),
+      if (_resolvingAddress) const LinearProgressIndicator(),
+      if (_addressError != null) ...[
+        Text(_addressError!, style: const TextStyle(fontSize: 12)),
+        Button(
+          text: '주소 다시 가져오기',
+          height: 40,
+          type: ButtonType.outlined,
+          onPressed: _resolvePinAddress,
+        ),
+      ],
+    ],
   ];
+
+  void _confirmSelection() {
+    final place = _selected;
+    if (place == null) return;
+    final name = _placeName.text.trim();
+    if (name.isEmpty || name.length > 200) {
+      UiUtils.showWarningDialog(
+        context: context,
+        title: '장소 이름을 확인해 주세요',
+        message: '장소 이름을 1~200자 이내로 입력해 주세요.',
+      );
+      return;
+    }
+    Navigator.pop(context, name == place.name ? place : place.withName(name));
+  }
 
   Widget _confirm() => Button(
     text: '이 장소 선택하기',
-    onPressed: _selected == null
-        ? null
-        : () => Navigator.pop(context, _selected),
+    onPressed: _selected == null ? null : _confirmSelection,
   );
 
   @override
@@ -294,7 +455,21 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
               top: inset.top + 8,
               left: 12,
               right: 12,
-              child: _header(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _header(),
+                  if (_hasSearch && _viewRevision != _searchRevision) ...[
+                    const SizedBox(height: 8),
+                    Button(
+                      text: '현재 위치에서 다시 검색',
+                      width: 220,
+                      height: 40,
+                      onPressed: _loading ? null : () => _search(),
+                    ),
+                  ],
+                ],
+              ),
             ),
             Positioned(
               left: 12,
@@ -309,7 +484,9 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_loading ||
+                      if (_locating ||
+                          _locationNotice != null ||
+                          _loading ||
                           _error != null ||
                           _searched ||
                           _selected != null ||

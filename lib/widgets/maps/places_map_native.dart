@@ -11,6 +11,8 @@ class PlacesMap extends StatefulWidget {
   final PlaceMapCenter? initialCenter;
   final ValueChanged<PlaceMapCenter>? onCameraIdle;
   final VoidCallback? onUserMove;
+  final bool fitPins;
+  final ValueChanged<Future<PlaceMapCenter?> Function()>? onCenterReaderReady;
   final ValueChanged<PlacePin>? onPinTap;
   final void Function(double latitude, double longitude)? onLongPress;
   const PlacesMap({
@@ -19,6 +21,8 @@ class PlacesMap extends StatefulWidget {
     this.initialCenter,
     this.onCameraIdle,
     this.onUserMove,
+    this.fitPins = true,
+    this.onCenterReaderReady,
     this.onPinTap,
     this.onLongPress,
   });
@@ -38,7 +42,27 @@ class _PlacesMapState extends State<PlacesMap> {
   @override
   void didUpdateWidget(PlacesMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialCenter != oldWidget.initialCenter) _applyInitialCenter();
     if (_signature(oldWidget.pins) != _signature(widget.pins)) _updatePins();
+  }
+
+  void _applyInitialCenter() {
+    final center = widget.initialCenter;
+    final controller = _controller;
+    if (widget.fitPins || center == null || controller == null) return;
+    _updates = _updates
+        .then((_) async {
+          if (!mounted || controller != _controller) return;
+          await controller.updateCamera(
+            NCameraUpdate.scrollAndZoomTo(
+              target: NLatLng(center.latitude, center.longitude),
+              zoom: center.zoom,
+            ),
+          );
+        })
+        .catchError((Object _) {
+          /* Keep the map usable if the initial fix fails. */
+        });
   }
 
   void _updatePins() {
@@ -74,6 +98,7 @@ class _PlacesMapState extends State<PlacesMap> {
           }
           if (markers.isNotEmpty) await controller.addOverlayAll(markers);
           if (!mounted || generation != _generation) return;
+          if (!widget.fitPins) return;
           final bounds = PlaceBounds.fromPlaces(pins.map((pin) => pin.place));
           if (bounds == null) return;
           final update = bounds.isPoint
@@ -109,7 +134,7 @@ class _PlacesMapState extends State<PlacesMap> {
     valueListenable: NaverMapRuntime.ready,
     builder: (context, ready, _) {
       if (!ready || _failed) return const MapUnavailable();
-      final first = widget.pins.firstOrNull?.place;
+      final first = widget.fitPins ? widget.pins.firstOrNull?.place : null;
       return NaverMap(
         options: NaverMapViewOptions(
           initialCameraPosition: NCameraPosition(
@@ -128,6 +153,23 @@ class _PlacesMapState extends State<PlacesMap> {
         onMapReady: (controller) {
           if (!mounted) return;
           _controller = controller;
+          _applyInitialCenter();
+          widget.onCenterReaderReady?.call(() async {
+            if (!mounted || controller != _controller) return null;
+            try {
+              await _updates;
+              if (!mounted || controller != _controller) return null;
+              final camera = await controller.getCameraPosition();
+              if (!mounted || controller != _controller) return null;
+              return PlaceMapCenter(
+                camera.target.latitude,
+                camera.target.longitude,
+                zoom: camera.zoom,
+              );
+            } catch (_) {
+              return null;
+            }
+          });
           _updatePins();
         },
         onCameraChange: (reason, _) {

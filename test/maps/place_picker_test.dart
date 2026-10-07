@@ -27,6 +27,21 @@ class _Search extends PlaceSearchRepository {
           authOptions: const AuthClientOptions(autoRefreshToken: false),
         ),
       );
+  bool controlledReverse = false;
+  final reverseRequests = <Completer<MeetupPlace>>[];
+  @override
+  Future<MeetupPlace> reverseGeocode({
+    required String groupId,
+    required PlaceMapCenter center,
+  }) {
+    if (!controlledReverse) {
+      return Future.error(const PlaceSearchException('주소를 가져오지 못했어요.'));
+    }
+    final request = Completer<MeetupPlace>();
+    reverseRequests.add(request);
+    return request.future;
+  }
+
   final requests = <Completer<List<MeetupPlace>>>[];
   final queries = <String>[];
   final centers = <PlaceMapCenter?>[];
@@ -345,4 +360,255 @@ void main() {
     expect(tester.widget<PlacesMap>(find.byType(PlacesMap)).pins, hasLength(1));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    're-search follows the live camera and hides only after a successful request',
+    (tester) async {
+      final repository = _Search();
+      const first = PlaceMapCenter(37.5, 127.1);
+      var current = first;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlacePickerScreen(
+            groupId: 'group',
+            repository: repository,
+            initialCenter: first,
+          ),
+        ),
+      );
+      PlacesMap map() => tester.widget<PlacesMap>(find.byType(PlacesMap));
+      map().onCenterReaderReady!(() async => current);
+      map().onUserMove!();
+      await tester.pump();
+      expect(find.text('현재 위치에서 다시 검색'), findsNothing);
+      await tester.enterText(find.byType(TextField), '스타벅스');
+      await tester.tap(find.byTooltip('검색'));
+      await tester.pump();
+      repository.requests.single.complete([candidate('스타벅스 잠실점')]);
+      await tester.pumpAndSettle();
+      expect(repository.centers.single, first);
+      expect(map().fitPins, isFalse);
+      // Programmatic camera events must not mark the view as moved.
+      map().onCameraIdle!(first);
+      await tester.pump();
+      expect(find.text('현재 위치에서 다시 검색'), findsNothing);
+      current = const PlaceMapCenter(35.16, 129.16);
+      map().onUserMove!();
+      await tester.pump();
+      expect(repository.requests, hasLength(1));
+      await tester.tap(find.text('현재 위치에서 다시 검색'));
+      await tester.pump();
+      expect(repository.centers.last, current);
+      repository.requests.last.completeError(
+        const PlaceSearchException('검색 오류'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('현재 위치에서 다시 검색'), findsOneWidget);
+      await tester.tap(find.text('현재 위치에서 다시 검색'));
+      await tester.pump();
+      repository.requests.last.complete([]);
+      await tester.pumpAndSettle();
+      expect(find.text('현재 위치에서 다시 검색'), findsNothing);
+      map().onUserMove!();
+      await tester.pump();
+      expect(find.text('현재 위치에서 다시 검색'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'moving while a search is pending keeps the re-search action visible',
+    (tester) async {
+      final repository = _Search();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlacePickerScreen(
+            groupId: 'group',
+            repository: repository,
+            initialCenter: const PlaceMapCenter(37.5, 127.1),
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), '카페');
+      await tester.tap(find.byTooltip('검색'));
+      await tester.pump();
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onUserMove!();
+      repository.requests.single.complete([candidate('카페')]);
+      await tester.pumpAndSettle();
+      expect(find.text('현재 위치에서 다시 검색'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a location fix initializes the map without starting a search', (
+    tester,
+  ) async {
+    final repository = _Search();
+    final location = Completer<PlaceMapCenter?>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlacePickerScreen(
+          groupId: 'group',
+          repository: repository,
+          locationLoader: () => location.future,
+        ),
+      ),
+    );
+    const position = PlaceMapCenter(35.16, 129.16);
+    location.complete(position);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).initialCenter,
+      position,
+    );
+    expect(repository.requests, isEmpty);
+    expect(find.text('현재 위치에서 다시 검색'), findsNothing);
+  });
+
+  testWidgets('a late location fix does not undo a user moving the map', (
+    tester,
+  ) async {
+    final repository = _Search();
+    final location = Completer<PlaceMapCenter?>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlacePickerScreen(
+          groupId: 'group',
+          repository: repository,
+          locationLoader: () => location.future,
+        ),
+      ),
+    );
+    final map = tester.widget<PlacesMap>(find.byType(PlacesMap));
+    map.onUserMove!();
+    const viewed = PlaceMapCenter(37.5, 127.1);
+    map.onCameraIdle!(viewed);
+    location.complete(const PlaceMapCenter(35.16, 129.16));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).initialCenter,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextField), '카페');
+    await tester.tap(find.byTooltip('검색'));
+    await tester.pump();
+    expect(repository.centers.single, viewed);
+    repository.requests.single.complete([]);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'renaming an address result preserves its address and coordinates on confirmation',
+    (tester) async {
+      final repository = _Search();
+      final address = MeetupPlace(
+        name: '서울 송파구 올림픽로 10',
+        address: '서울 송파구 올림픽로 10',
+        latitude: 37.5,
+        longitude: 127.1,
+        source: 'naver_geocode',
+      );
+      MeetupPlace? selected;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async =>
+                  selected = await Navigator.push<MeetupPlace>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PlacePickerScreen(
+                        groupId: 'group',
+                        repository: repository,
+                        initialPlace: address,
+                      ),
+                    ),
+                  ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final nameField = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '장소 이름',
+      );
+      await tester.ensureVisible(nameField);
+      await tester.enterText(nameField, '우리 아지트');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      tester
+          .widget<Button>(find.widgetWithText(Button, '이 장소 선택하기'))
+          .onPressed!();
+      await tester.pumpAndSettle();
+      expect(selected!.name, '우리 아지트');
+      expect(selected!.address, address.address);
+      expect(selected!.coordinateKey, address.coordinateKey);
+      expect(selected!.source, 'naver_geocode');
+    },
+  );
+
+  testWidgets(
+    'a late pin address preserves an edited name and cannot restore a cleared pin',
+    (tester) async {
+      final repository = _Search()..controlledReverse = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlacePickerScreen(
+            groupId: 'group',
+            repository: repository,
+            initialCenter: const PlaceMapCenter(37.5, 127.1),
+          ),
+        ),
+      );
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onLongPress!(
+        37.5,
+        127.1,
+      );
+      await tester.pump();
+      final nameField = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '장소 이름',
+      );
+      await tester.ensureVisible(nameField);
+      await tester.enterText(nameField, '친구 집');
+      repository.reverseRequests.single.complete(
+        MeetupPlace(
+          name: '직접 선택한 장소',
+          address: '서울 송파구 올림픽로 10',
+          latitude: 37.5,
+          longitude: 127.1,
+          source: 'manual_pin',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(nameField).controller!.text, '친구 집');
+      expect(
+        tester
+            .widget<PlacesMap>(find.byType(PlacesMap))
+            .pins
+            .single
+            .place
+            .address,
+        '서울 송파구 올림픽로 10',
+      );
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onLongPress!(
+        37.6,
+        127.2,
+      );
+      await tester.pump();
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onUserMove!();
+      repository.reverseRequests.last.complete(
+        MeetupPlace(
+          name: '직접 선택한 장소',
+          address: '늦게 도착한 주소',
+          latitude: 37.6,
+          longitude: 127.2,
+          source: 'manual_pin',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<PlacesMap>(find.byType(PlacesMap)).pins, isEmpty);
+      expect(find.text('늦게 도착한 주소'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

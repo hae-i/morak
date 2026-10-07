@@ -130,12 +130,14 @@ test('missing Maps credentials distinguish address and nearby failures without c
   assert.equal(calls, 0);
 });
 
-test('automatic name search excludes menu-only matches and never prefixes the initial map location', async () => {
+test('automatic name search uses the viewed neighborhood and still excludes menu-only matches', async () => {
   const response = await handleSearch(request({group_id: groupId, query: '만주', mode: 'auto',
-    center: {latitude: 37.5666, longitude: 126.979}}), {...defaults, fetcher: async (url) => {
+    center: {latitude: 37.5, longitude: 127.1}}), {...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
       const target = new URL(String(url));
+      if (target.pathname.endsWith('/gc')) return Response.json({status: {code: 0}, results: [{region: {
+        area1: {name: '서울특별시'}, area2: {name: '송파구'}, area3: {name: '잠실동'}}}]});
       assert.equal(target.host, 'openapi.naver.com');
-      assert.equal(target.searchParams.get('query'), '만주');
+      assert.equal(target.searchParams.get('query'), '서울특별시 송파구 잠실동 만주');
       return Response.json({items: [
         {title: '중화요리집', description: '만주 메뉴', mapx: '1271000000', mapy: '375000000'},
         {title: '<b>만주</b> 송파점', mapx: '1271000000', mapy: '375000000'},
@@ -227,4 +229,64 @@ test('a shop name ending in a region suffix is still matched as a whole name', a
     ...defaults, fetcher: async () => Response.json({items: [{title: '아무도', mapx: '1271000000', mapy: '375000000'}]})});
   assert.equal(response.status, 200);
   assert.equal((await response.json()).items[0].name, '아무도');
+});
+
+
+test('chain searches follow the current center rather than receiving national branches', async () => {
+  const queries: string[] = [];
+  for (const [latitude, area, branch] of [[37.5, '잠실동', '스타벅스 잠실점'], [35.16, '우동', '스타벅스 해운대점']] as const) {
+    const response = await handleSearch(request({group_id: groupId, query: '스타벅스', mode: 'auto', name_only: true,
+      center: {latitude, longitude: 127.1}}), {...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      const target = new URL(String(url));
+      if (target.pathname.endsWith('/gc')) {
+        assert.equal(target.searchParams.get('coords'), `127.1,${latitude}`);
+        return Response.json({status: {code: 0}, results: [{region: {
+          area1: {name: '서울특별시'}, area2: {name: '송파구'}, area3: {name: area}}}]});
+      }
+      const query = target.searchParams.get('query')!; queries.push(query);
+      assert.ok(query.includes(area));
+      return Response.json({items: [{title: branch, mapx: '1271000000', mapy: String(Math.round(latitude * 1e7))}]});
+    }});
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).items[0].name, branch);
+  }
+  assert.notEqual(queries[0], queries[1]);
+});
+
+test('reverse lookup prioritizes road address and preserves the exact selected pin', async () => {
+  const center = {latitude: 37.501234, longitude: 127.101234};
+  const response = await handleSearch(request({group_id: groupId, mode: 'reverse', center}), {
+    ...defaults, clientId: undefined, clientSecret: undefined, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      const target = new URL(String(url));
+      assert.equal(target.searchParams.get('coords'), '127.101234,37.501234');
+      assert.equal(target.searchParams.get('orders'), 'roadaddr,addr');
+      return Response.json({status: {code: 0}, results: [
+        {name: 'addr', region: {area1: {name: '서울특별시'}, area2: {name: '송파구'}, area3: {name: '잠실동'}}, land: {number1: '10', number2: '2', type: '1'}},
+        {name: 'roadaddr', region: {area1: {name: '서울특별시'}, area2: {name: '송파구'}}, land: {name: '올림픽로', number1: '10', number2: '0'}},
+      ]});
+    }});
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).items[0], {name: '직접 선택한 장소', address: '서울특별시 송파구 올림픽로 10', ...center, source: 'manual_pin'});
+});
+
+test('reverse lookup falls back to parcel addresses and distinguishes unaddressed pins', async () => {
+  const body = {group_id: groupId, mode: 'reverse', center: {latitude: 37.5, longitude: 127.1}};
+  const deps = {...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret'};
+  const response = await handleSearch(request(body), {...deps, fetcher: async () => Response.json({status: {code: 0}, results: [
+    {name: 'addr', region: {area1: {name: '경기도'}, area2: {name: '가평군'}, area3: {name: '가평읍'}, area4: {name: '읍내리'}}, land: {type: '2', number1: '10', number2: '2'}}]})});
+  assert.equal((await response.json()).items[0].address, '경기도 가평군 가평읍 읍내리 산 10-2');
+  const missing = await handleSearch(request(body), {...deps, fetcher: async () => Response.json({status: {code: 3}, results: []})});
+  assert.equal(missing.status, 404);
+  assert.deepEqual(await missing.json(), {error: 'address_not_found'});
+});
+
+test('reverse lookup requires coordinates, authorization and quota before calling Maps', async () => {
+  let calls = 0;
+  const body = {group_id: groupId, mode: 'reverse', center: {latitude: 37.5, longitude: 127.1}};
+  const deps = {...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async () => {calls++; return Response.json({});}};
+  assert.equal((await handleSearch(request({group_id: groupId, mode: 'reverse'}), deps)).status, 400);
+  assert.equal((await handleSearch(request(body), {...deps, authorize: async () => false})).status, 403);
+  assert.equal((await handleSearch(request(body), {...deps, allowSearch: async () => false})).status, 429);
+  assert.equal((await handleSearch(request(body), {...deps, mapClientSecret: undefined})).status, 503);
+  assert.equal(calls, 0);
 });

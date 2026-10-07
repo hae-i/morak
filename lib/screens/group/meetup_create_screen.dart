@@ -22,6 +22,7 @@ import '../../widgets/maps/expandable_places_map.dart';
 import 'place_picker_screen.dart';
 import '../../models/member_model.dart';
 import '../../utils/data_refresh.dart';
+import '../../utils/ui_utils.dart';
 
 class MeetupCreateScreen extends StatefulWidget {
   final String groupId;
@@ -79,9 +80,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   }
 
   void _locationChanged() {
-    if (_place != null && _locationController.text.trim() != _place!.name) {
+    final name = _locationController.text.trim();
+    if (_place != null &&
+        name != _place!.name &&
+        name.isNotEmpty &&
+        name.length <= 200) {
       setState(() {
-        _place = null;
+        _place = _place!.withName(name);
         _placeChanged = true;
       });
     }
@@ -247,6 +252,14 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     final title = _titleController.text.trim();
     final location = _locationController.text.trim();
     final menu = _menuController.text.trim();
+    if (_place != null && (location.isEmpty || location.length > 200)) {
+      UiUtils.showWarningDialog(
+        context: context,
+        title: '장소 이름을 확인해 주세요',
+        message: '지도에 선택한 장소 이름을 1~200자 이내로 입력해 주세요.',
+      );
+      return;
+    }
 
     // 🌟 알림창(WarningDialog) 대신 필수 입력란(제목) 하단에 빨간색 경고 문구 출력
     if (title.isEmpty) {

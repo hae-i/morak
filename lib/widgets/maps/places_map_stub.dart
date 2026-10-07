@@ -9,6 +9,8 @@ class PlacesMap extends StatelessWidget {
   final PlaceMapCenter? initialCenter;
   final ValueChanged<PlaceMapCenter>? onCameraIdle;
   final VoidCallback? onUserMove;
+  final bool fitPins;
+  final ValueChanged<Future<PlaceMapCenter?> Function()>? onCenterReaderReady;
   final ValueChanged<PlacePin>? onPinTap;
   final void Function(double latitude, double longitude)? onLongPress;
   const PlacesMap({
@@ -17,6 +19,8 @@ class PlacesMap extends StatelessWidget {
     this.initialCenter,
     this.onCameraIdle,
     this.onUserMove,
+    this.fitPins = true,
+    this.onCenterReaderReady,
     this.onPinTap,
     this.onLongPress,
   });

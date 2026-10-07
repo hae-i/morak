@@ -23,7 +23,7 @@ void main() {
     locator.registerSingleton<MeetupRepository>(meetups);
   });
   tearDown(() => locator.reset());
-  Future<void> openEditor(WidgetTester tester) async {
+  Future<void> openEditor(WidgetTester tester, {MeetupPlace? place}) async {
     groups.pending = Completer<List<MemberModel>>();
     await tester.pumpWidget(
       MaterialApp(
@@ -34,7 +34,8 @@ void main() {
             groupId: 'group',
             title: 'Original',
             date: '2026-01-15',
-            location: 'Original place',
+            location: place?.name ?? 'Original place',
+            place: place,
             menu: 'Original menu',
             photos: [],
             attendanceMemberIds: ['member'],
@@ -113,6 +114,45 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(meetups.saves, 0);
   });
+  testWidgets(
+    'editing a place name preserves the map even across an empty intermediate input',
+    (tester) async {
+      final place = MeetupPlace(
+        name: 'Original place',
+        address: '서울 송파구 올림픽로 10',
+        latitude: 37.5,
+        longitude: 127.1,
+        source: 'naver_geocode',
+      );
+      await openEditor(tester, place: place);
+      groups.pending.complete([]);
+      await tester.pumpAndSettle();
+      final location = find.byWidgetPredicate(
+        (w) => w is TextField && w.controller?.text == 'Original place',
+      );
+      await tester.scrollUntilVisible(
+        location,
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final controller = tester.widget<TextField>(location).controller!;
+      controller.text = '';
+      await tester.pump();
+      controller.text = '우리 아지트';
+      await tester.pump();
+      await tester.scrollUntilVisible(
+        find.text('수정 완료'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      tester.widget<Button>(find.widgetWithText(Button, '수정 완료')).onPressed!();
+      await tester.pump();
+      expect(meetups.savedPlace!.name, '우리 아지트');
+      expect(meetups.savedPlace!.address, place.address);
+      expect(meetups.savedPlace!.coordinateKey, place.coordinateKey);
+      expect(meetups.updatePlace, isTrue);
+    },
+  );
 }
 
 SupabaseClient _client() =>
@@ -132,6 +172,8 @@ class _Groups extends GroupRepository {
 class _Meetups extends MeetupRepository {
   _Meetups() : super(client: _client());
   int saves = 0;
+  MeetupPlace? savedPlace;
+  bool? updatePlace;
   String? title, date;
   Set<String>? attendees;
   @override
@@ -148,6 +190,8 @@ class _Meetups extends MeetupRepository {
     required Set<String> memberIds,
   }) async {
     saves++;
+    savedPlace = place;
+    this.updatePlace = updatePlace;
     this.title = title;
     date = meetDate;
     attendees = memberIds;

@@ -52,6 +52,14 @@ class MeetupPlace {
     'source': source,
   };
 
+  MeetupPlace withName(String name) => MeetupPlace(
+    name: name.trim(),
+    address: address,
+    latitude: latitude,
+    longitude: longitude,
+    source: source,
+  );
+
   String get coordinateKey =>
       '${latitude.toStringAsFixed(6)}:${longitude.toStringAsFixed(6)}';
 

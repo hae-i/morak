@@ -23,6 +23,36 @@ class PlaceSearchRepository {
     if (text.isEmpty || text.length > 100) {
       throw const FormatException('Invalid search');
     }
+    return _lookup(groupId: groupId, query: text, mode: mode, center: center);
+  }
+
+  Future<MeetupPlace> reverseGeocode({
+    required String groupId,
+    required PlaceMapCenter center,
+  }) async {
+    final places = await _lookup(
+      groupId: groupId,
+      query: '',
+      mode: 'reverse',
+      center: center,
+    );
+    if (places.length != 1 || places.single.source != 'manual_pin') {
+      throw const FormatException('Invalid reverse response');
+    }
+    final place = places.single;
+    if ((place.latitude - center.latitude).abs() > 0.000001 ||
+        (place.longitude - center.longitude).abs() > 0.000001) {
+      throw const FormatException('Pin coordinates changed');
+    }
+    return place;
+  }
+
+  Future<List<MeetupPlace>> _lookup({
+    required String groupId,
+    required String query,
+    required String mode,
+    PlaceMapCenter? center,
+  }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Authentication required');
     late final FunctionResponse response;
@@ -32,7 +62,7 @@ class PlaceSearchRepository {
             'naver-place-search',
             body: {
               'group_id': groupId,
-              'query': text,
+              'query': query,
               'mode': mode,
               'name_only': true,
               if (center != null) 'center': center.toJson(),
@@ -43,6 +73,11 @@ class PlaceSearchRepository {
       final details = error.details;
       final code = details is Map ? details['error'] : null;
       final message = switch (code) {
+        'address_not_found' => '이 핀의 주소를 찾지 못했어요. 이름을 정해 위치만 저장할 수 있어요.',
+        'reverse_search_not_configured' || 'reverse_search_auth_failed' =>
+          '핀 주소 조회를 아직 사용할 수 없어요. 이름을 정해 위치만 저장할 수 있어요.',
+        'nearby_search_auth_failed' || 'nearby_search_unavailable' =>
+          '현재 지도 주변을 확인하지 못했어요. 지도 검색 설정을 확인해 주세요.',
         'place_search_auth_failed' => '네이버 장소 검색 인증을 확인해 주세요.',
         'address_search_auth_failed' =>
           '네이버 주소 검색 키와 Geocoding 사용 설정을 확인해 주세요.',
@@ -51,7 +86,7 @@ class PlaceSearchRepository {
         'address_search_not_configured' =>
           '주소 검색을 아직 사용할 수 없어요. 장소 이름으로 검색해 주세요.',
         'nearby_search_not_configured' =>
-          '장소 검색을 아직 사용할 수 없어요. 잠시 후 다시 시도해 주세요.',
+          '현재 지도 주변 검색을 아직 사용할 수 없어요. 지도 검색 설정을 확인해 주세요.',
         _ => switch (error.status) {
           400 => '검색 요청을 처리하지 못했습니다. 최신 검색 함수로 다시 배포해 주세요.',
           401 => '로그인이 만료되었어요. 다시 로그인해 주세요.',

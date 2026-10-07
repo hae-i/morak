@@ -61,11 +61,11 @@ async function compatibleProvider(
   }
   throw new Error('No provider configured');
 }
-async function mapsProvider(url: URL, deps: Dependencies) {
+async function mapsProvider(url: URL, deps: Dependencies, code = 'address_search_auth_failed') {
   const current = new URL(url);
   const legacy = new URL(url); legacy.hostname = 'naveropenapi.apigw.ntruss.com';
   const urls = deps.mapProvider === 'legacy' ? [legacy] : deps.mapProvider === 'maps' ? [current] : [current, legacy];
-  return (await compatibleProvider(urls, urls.map(() => mapHeaders(deps)), deps, 'address_search_auth_failed')).data;
+  return (await compatibleProvider(urls, urls.map(() => mapHeaders(deps)), deps, code)).data;
 }
 async function searchAddress(query: string, center: Center | undefined, deps: Dependencies) {
   const url = new URL('https://maps.apigw.ntruss.com/map-geocode/v2/geocode');
@@ -86,12 +86,41 @@ async function regionAt(center: Center, deps: Dependencies) {
   const url = new URL('https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc');
   url.search = new URLSearchParams({coords: `${center.longitude},${center.latitude}`,
     sourcecrs: 'EPSG:4326', orders: 'legalcode', output: 'json'}).toString();
-  const data = await provider(url, mapHeaders(deps), deps, 3000);
-  if (data.status?.code !== 0 || !Array.isArray(data.results) || !data.results.length) throw new Error('Invalid region');
+  const data = await mapsProvider(url, deps, 'nearby_search_auth_failed');
+  if (data.status?.code !== 0 || !Array.isArray(data.results) || !data.results.length) throw new SearchFailure(502, 'nearby_search_unavailable');
   const region = data.results[0].region;
   const names = [region?.area1?.name, region?.area2?.name, region?.area3?.name];
-  if (names.some((name) => typeof name !== 'string' || !name || name.length > 60 || !/^[가-힣\s]+$/.test(name))) throw new Error('Invalid region');
+  if (names.some((name) => typeof name !== 'string' || !name || name.length > 60 || !/^[가-힣\s]+$/.test(name))) throw new SearchFailure(502, 'nearby_search_unavailable');
   return names.join(' ');
+}
+async function reverseAddress(center: Center, deps: Dependencies) {
+  const url = new URL('https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc');
+  url.search = new URLSearchParams({coords: `${center.longitude},${center.latitude}`,
+    sourcecrs: 'EPSG:4326', orders: 'roadaddr,addr', output: 'json'}).toString();
+  const data = await mapsProvider(url, deps, 'reverse_search_auth_failed');
+  if (data.status?.code === 3) throw new SearchFailure(404, 'address_not_found');
+  if (data.status?.code !== 0 || !Array.isArray(data.results)) throw new Error('Invalid reverse address');
+  for (const kind of ['roadaddr', 'addr']) {
+    for (const result of data.results) {
+      if (result.name !== kind) continue;
+      const region = result.region;
+      const land = result.land;
+      const parts = [region?.area1?.name, region?.area2?.name];
+      if (kind === 'roadaddr') parts.push(land?.name);
+      else parts.push(region?.area3?.name, region?.area4?.name);
+      const number1 = plainText(land?.number1, 20);
+      const number2 = plainText(land?.number2, 20);
+      if (!/^\d+$/.test(number1) || (number2 && !/^\d+$/.test(number2))) continue;
+      const names = parts.map((part) => plainText(part, 100)).filter(Boolean);
+      if (names.length < 2) continue;
+      names.push(`${kind === 'addr' && land?.type === '2' ? '산 ' : ''}${number1}${number2 && number2 !== '0' ? '-' + number2 : ''}`);
+      const address = names.join(' ');
+      if (address.length > 500) throw new Error('Invalid reverse address');
+      // Preserve the exact pin, never substitute a building/parcel centroid.
+      return [{name: '직접 선택한 장소', address, ...center, source: 'manual_pin'}];
+    }
+  }
+  throw new SearchFailure(404, 'address_not_found');
 }
 function distance(point: Center, center: Center) {
   const rad = (n: number) => n * Math.PI / 180;
@@ -112,7 +141,8 @@ async function searchPlaces(query: string, center: Center | undefined, deps: Dep
   const originalQuery = query;
   // Local Search has no radius/center parameter. Bias its query by the map's
   // administrative region, then sort only the returned candidates by distance.
-  if (!nameOnly && center && !/[가-힣]{2,}(시|군|구|동|읍|면|로|길)(\s|$)/.test(query)) {
+  if (center && nameTerms(query).length === query.split(/\s+/).length &&
+      !/[가-힣]{2,}(시|군|구|동|읍|면|로|길)(\s|$)/.test(query)) {
     query = `${await regionAt(center, deps)} ${query}`;
   }
   const candidates = deps.searchProvider ? [deps.searchProvider] : ['legacy', 'hub'];
@@ -183,11 +213,12 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
   } catch { return json(400, {error: 'invalid_request'}); }
   const query = typeof body.query === 'string' ? body.query.trim() : '';
   const groupId = typeof body.group_id === 'string' ? body.group_id : '';
-  if (!query || query.length > 100 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(groupId)) {
+  const reverse = body.mode === 'reverse';
+  if ((!reverse && !query) || query.length > 100 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(groupId)) {
     return json(400, {error: 'invalid_request'});
   }
   const mode = body.mode ?? 'place';
-  if (mode !== 'place' && mode !== 'address' && mode !== 'auto') return json(400, {error: 'invalid_request'});
+  if (mode !== 'place' && mode !== 'address' && mode !== 'auto' && mode !== 'reverse') return json(400, {error: 'invalid_request'});
   if (body.name_only !== undefined && typeof body.name_only !== 'boolean') return json(400, {error: 'invalid_request'});
   const nameOnly = body.name_only === true || mode === 'auto';
   const addressFirst = mode === 'address' || (mode === 'auto' && looksLikeAddress(query));
@@ -200,12 +231,13 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
         Math.abs(value.latitude) > 90 || Math.abs(value.longitude) > 180) return json(400, {error: 'invalid_request'});
     center = {latitude: value.latitude, longitude: value.longitude};
   }
+  if (reverse && !center) return json(400, {error: 'invalid_request'});
   try {
     if (!await deps.authorize(token, groupId)) return json(403, {error: 'access_denied'});
   } catch { return json(503, {error: 'search_unavailable'}); }
-  if (!addressFirst && (!deps.clientId || !deps.clientSecret)) return json(503, {error: 'search_not_configured'});
-  if ((addressFirst || (center && !nameOnly)) && (!deps.mapClientId || !deps.mapClientSecret)) {
-    return json(503, {error: addressFirst ? 'address_search_not_configured' : 'nearby_search_not_configured'});
+  if (!reverse && !addressFirst && (!deps.clientId || !deps.clientSecret)) return json(503, {error: 'search_not_configured'});
+  if ((reverse || addressFirst || center) && (!deps.mapClientId || !deps.mapClientSecret)) {
+    return json(503, {error: reverse ? 'reverse_search_not_configured' : addressFirst ? 'address_search_not_configured' : 'nearby_search_not_configured'});
   }
   try {
     if (!await deps.allowSearch(token)) return json(429, {error: 'search_rate_limited'});
@@ -213,6 +245,7 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
 
   const runtime = {...deps, signal: AbortSignal.timeout(10000)};
   try {
+    if (reverse) return json(200, {items: await reverseAddress(center!, runtime)});
     let items = addressFirst ? await searchAddress(query, center, runtime) : await searchPlaces(query, center, runtime, nameOnly);
     let warning: string | undefined;
     if (mode === 'auto' && items.length === 0) {
