@@ -16,7 +16,7 @@ class PlaceSearchRepository {
   Future<List<MeetupPlace>> search({
     required String groupId,
     required String query,
-    String mode = 'place',
+    String mode = 'auto',
     PlaceMapCenter? center,
   }) async {
     final text = query.trim();
@@ -34,6 +34,7 @@ class PlaceSearchRepository {
               'group_id': groupId,
               'query': text,
               'mode': mode,
+              'name_only': true,
               if (center != null) 'center': center.toJson(),
             },
           )
@@ -45,7 +46,7 @@ class PlaceSearchRepository {
         'address_search_not_configured' =>
           '주소 검색을 아직 사용할 수 없어요. 장소 이름으로 검색해 주세요.',
         'nearby_search_not_configured' =>
-          '지도 주변 검색을 아직 사용할 수 없어요. 전체 지역 검색으로 바꿔 주세요.',
+          '장소 검색을 아직 사용할 수 없어요. 잠시 후 다시 시도해 주세요.',
         _ => switch (error.status) {
           401 => '로그인이 만료되었어요. 다시 로그인해 주세요.',
           403 => '이 모임의 장소를 검색할 권한이 없어요.',

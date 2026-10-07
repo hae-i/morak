@@ -87,7 +87,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     }
   }
 
-  Future<void> _pickPlace({bool fullScreen = false}) async {
+  Future<void> _pickPlace({bool fullScreen = true}) async {
     final place = await Navigator.push<MeetupPlace>(
       context,
       MaterialPageRoute(

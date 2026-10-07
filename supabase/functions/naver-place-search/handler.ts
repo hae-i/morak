@@ -77,10 +77,20 @@ function distance(point: Center, center: Center) {
     Math.cos(rad(center.latitude)) * Math.cos(rad(point.latitude)) *
     Math.sin(rad(point.longitude - center.longitude) / 2) ** 2;
 }
-async function searchPlaces(query: string, center: Center | undefined, deps: Dependencies) {
+function nameTerms(query: string) {
+  return query.split(/\s+/).filter((part) =>
+    !/^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)$/.test(part) &&
+    !/^[가-힣]{2,}(특별시|광역시|특별자치시|특별자치도|도|시|군|구|동|읍|면)$/.test(part));
+}
+function looksLikeAddress(query: string) {
+  return /[가-힣]+(?:로|길)\s*\d/.test(query) || /[가-힣]+(?:동|읍|면|리)\s+\d/.test(query) ||
+    /^(?:[가-힣]+(?:시|군|구|동|읍|면|로|길)\s*)+$/.test(query);
+}
+async function searchPlaces(query: string, center: Center | undefined, deps: Dependencies, nameOnly = false) {
+  const originalQuery = query;
   // Local Search has no radius/center parameter. Bias its query by the map's
   // administrative region, then sort only the returned candidates by distance.
-  if (center && !/[가-힣]{2,}(시|군|구|동|읍|면|로|길)(\s|$)/.test(query)) {
+  if (!nameOnly && center && !/[가-힣]{2,}(시|군|구|동|읍|면|로|길)(\s|$)/.test(query)) {
     query = `${await regionAt(center, deps)} ${query}`;
   }
   const hub = deps.searchProvider === 'hub';
@@ -110,8 +120,11 @@ async function searchPlaces(query: string, center: Center | undefined, deps: Dep
     return {name, address: plainText(item.roadAddress, 500) || plainText(item.address, 500),
       ...coordinates(latitude, longitude), source: 'naver_search'};
   });
-  if (center) items.sort((a: Center, b: Center) => distance(a, center) - distance(b, center));
-  return items;
+  const normalized = (text: string) => text.normalize('NFKC').toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+  const terms = nameTerms(originalQuery).map(normalized).filter(Boolean);
+  const matches = nameOnly ? items.filter((item: {name: string}) => terms.length > 0 && terms.every((term) => normalized(item.name).includes(term))) : items;
+  if (center) matches.sort((a: Center, b: Center) => distance(a, center) - distance(b, center));
+  return matches;
 }
 
 export async function handleSearch(req: Request, deps: Dependencies): Promise<Response> {
@@ -146,7 +159,10 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
     return json(400, {error: 'invalid_request'});
   }
   const mode = body.mode ?? 'place';
-  if (mode !== 'place' && mode !== 'address') return json(400, {error: 'invalid_request'});
+  if (mode !== 'place' && mode !== 'address' && mode !== 'auto') return json(400, {error: 'invalid_request'});
+  if (body.name_only !== undefined && typeof body.name_only !== 'boolean') return json(400, {error: 'invalid_request'});
+  const nameOnly = body.name_only === true || mode === 'auto';
+  const addressFirst = mode === 'address' || (mode === 'auto' && looksLikeAddress(query));
   let center: Center | undefined;
   if (body.center !== undefined) {
     const value = body.center as Record<string, unknown> | null;
@@ -159,16 +175,20 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
   try {
     if (!await deps.authorize(token, groupId)) return json(403, {error: 'access_denied'});
   } catch { return json(503, {error: 'search_unavailable'}); }
-  if (mode === 'place' && (!deps.clientId || !deps.clientSecret)) return json(503, {error: 'search_not_configured'});
-  if ((mode === 'address' || center) && (!deps.mapClientId || !deps.mapClientSecret)) {
-    return json(503, {error: mode === 'address' ? 'address_search_not_configured' : 'nearby_search_not_configured'});
+  if (!addressFirst && (!deps.clientId || !deps.clientSecret)) return json(503, {error: 'search_not_configured'});
+  if ((addressFirst || (center && !nameOnly)) && (!deps.mapClientId || !deps.mapClientSecret)) {
+    return json(503, {error: addressFirst ? 'address_search_not_configured' : 'nearby_search_not_configured'});
   }
   try {
     if (!await deps.allowSearch(token)) return json(429, {error: 'search_rate_limited'});
   } catch { return json(503, {error: 'search_unavailable'}); }
 
   try {
-    const items = mode === 'address' ? await searchAddress(query, center, deps) : await searchPlaces(query, center, deps);
+    let items = addressFirst ? await searchAddress(query, center, deps) : await searchPlaces(query, center, deps, nameOnly);
+    if (mode === 'auto' && items.length === 0) {
+      if (addressFirst && deps.clientId && deps.clientSecret) items = await searchPlaces(query, center, deps, true);
+      else if (!addressFirst && deps.mapClientId && deps.mapClientSecret) items = await searchAddress(query, center, deps);
+    }
     return json(200, {items});
   } catch (error) {
     return error instanceof SearchFailure ? json(error.status, {error: error.code}) : json(502, {error: 'search_unavailable'});

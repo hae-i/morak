@@ -7,6 +7,7 @@ import 'package:morak/models/place_map_center.dart';
 import 'package:morak/repositories/place_search_repository.dart';
 import 'package:morak/screens/group/place_picker_screen.dart';
 import 'package:morak/widgets/common/common_button.dart';
+import 'package:morak/widgets/maps/places_map.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 MeetupPlace candidate(String name) => MeetupPlace(
@@ -181,7 +182,7 @@ void main() {
   );
 
   testWidgets(
-    'expand keeps candidates and confirms the selection back to the record',
+    'fullscreen keeps candidates and confirms the selection back to the record',
     (tester) async {
       final repository = _Search();
       final original = candidate('기존 장소');
@@ -209,8 +210,6 @@ void main() {
         ),
       );
       await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('지도 전체 화면으로 보기'));
       await tester.pumpAndSettle();
       final screen = tester.widget<PlacePickerScreen>(
         find.byType(PlacePickerScreen).last,
@@ -254,4 +253,32 @@ void main() {
     expect(find.text('이 장소 선택하기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'map fills the screen under compact search controls and inherits the app font',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(fontFamily: 'AppFont'),
+          home: PlacePickerScreen(groupId: 'group', repository: _Search()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.text('지도 주변'), findsNothing);
+      expect(find.text('전체 지역'), findsNothing);
+      expect(find.byType(ChoiceChip), findsNothing);
+      final map = tester.getRect(find.byType(PlacesMap));
+      final scaffold = tester.getRect(find.byType(Scaffold));
+      expect(map, scaffold);
+      expect(
+        tester.widget<Button>(find.widgetWithText(Button, '검색')).height,
+        40,
+      );
+      expect(
+        tester.widget<Text>(find.text('만난 장소 찾기')).style?.fontFamily,
+        'AppFont',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

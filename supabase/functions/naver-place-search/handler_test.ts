@@ -129,3 +129,50 @@ test('missing Maps credentials distinguish address and nearby failures without c
   }
   assert.equal(calls, 0);
 });
+
+test('automatic name search excludes menu-only matches and never prefixes the initial map location', async () => {
+  const response = await handleSearch(request({group_id: groupId, query: '만주', mode: 'auto',
+    center: {latitude: 37.5666, longitude: 126.979}}), {...defaults, fetcher: async (url) => {
+      const target = new URL(String(url));
+      assert.equal(target.host, 'openapi.naver.com');
+      assert.equal(target.searchParams.get('query'), '만주');
+      return Response.json({items: [
+        {title: '중화요리집', description: '만주 메뉴', mapx: '1271000000', mapy: '375000000'},
+        {title: '<b>만주</b> 송파점', mapx: '1271000000', mapy: '375000000'},
+      ]});
+    }});
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).items.map((item: {name: string}) => item.name), ['만주 송파점']);
+});
+
+test('automatic street address search goes directly to Geocoding', async () => {
+  const response = await handleSearch(request({group_id: groupId, query: '올림픽로 10', mode: 'auto'}), {
+    ...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      assert.equal(new URL(String(url)).pathname, '/map-geocode/v2/geocode');
+      return Response.json({status: 'OK', addresses: [{roadAddress: '서울 송파구 올림픽로 10', x: '127.1', y: '37.5'}]});
+    }});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).items[0].source, 'naver_geocode');
+});
+
+test('automatic ambiguous query falls back to address search only when no shop name matches', async () => {
+  const paths: string[] = [];
+  const response = await handleSearch(request({group_id: groupId, query: '잠실', mode: 'auto'}), {
+    ...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      const path = new URL(String(url)).pathname; paths.push(path);
+      if (path.endsWith('local.json')) return Response.json({items: []});
+      return Response.json({status: 'OK', addresses: [{jibunAddress: '서울 송파구 잠실동', x: '127.1', y: '37.5'}]});
+    }});
+  assert.equal(response.status, 200);
+  assert.deepEqual(paths, ['/v1/search/local.json', '/map-geocode/v2/geocode']);
+});
+
+test('shop-name filtering allows region-qualified queries without accepting menu-only matches', async () => {
+  const response = await handleSearch(request({group_id: groupId, query: '송파구 만주', mode: 'auto'}), {
+    ...defaults, fetcher: async () => Response.json({items: [
+      {title: '만주', address: '서울 송파구', mapx: '1271000000', mapy: '375000000'},
+      {title: '다른 식당', address: '서울 송파구', description: '만주', mapx: '1271000000', mapy: '375000000'},
+    ]})});
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).items.map((item: {name: string}) => item.name), ['만주']);
+});

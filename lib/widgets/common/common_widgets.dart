@@ -59,12 +59,21 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final String? errorText;
+  final EdgeInsetsGeometry contentPadding;
+  final bool isDense;
+  final ValueChanged<String>? onSubmitted;
 
   const CustomTextField({
     super.key,
     required this.controller,
     required this.hint,
     this.errorText,
+    this.contentPadding = const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 16,
+    ),
+    this.isDense = false,
+    this.onSubmitted,
   });
 
   @override
@@ -74,18 +83,18 @@ class CustomTextField extends StatelessWidget {
       children: [
         TextField(
           controller: controller,
+          onSubmitted: onSubmitted,
+          textInputAction: onSubmitted == null ? null : TextInputAction.search,
           decoration: InputDecoration(
             hintText: hint,
+            isDense: isDense,
             hintStyle: const TextStyle(
               color: AppConstants.textCaption,
               fontSize: 15,
             ),
             filled: true,
             fillColor: AppConstants.dividerColor,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
+            contentPadding: contentPadding,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
