@@ -42,6 +42,13 @@ Do not prioritize cosmetic refactoring over real user-facing issues.
 
 # Flutter Guidelines
 
+## Shared UI Components
+
+- Before adding UI, inspect and reuse `lib/widgets/common/common_button.dart` and `common_widgets.dart` where applicable.
+- Prefer `UiUtils` for existing dialog/picker flows, `ColorUtils` for color conversion/readability, and `AppConstants` for shared colors.
+- Extend shared widgets with optional parameters when necessary, preserving defaults for existing callers.
+
+
 - Follow Dart null-safety rules.
 - Be careful when using BuildContext after async gaps.
 - Check `mounted` or `context.mounted` where appropriate.

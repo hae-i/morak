@@ -23,22 +23,6 @@
     <title>모락(Morak)</title>
     <link rel="manifest" href="manifest.json">
 
-    <!-- 🚨 절대 지우면 안 되는 플러터 핵심 스크립트 🚨 -->
-    <script>
-        window.addEventListener('load', function(ev) {
-          // 플러터 앱을 로드하고 실행하는 스크립트
-          _flutter.loader.loadEntrypoint({
-            serviceWorker: {
-              serviceWorkerVersion: serviceWorkerVersion,
-            },
-            onEntrypointLoaded: function(engineInitializer) {
-              engineInitializer.initializeEngine().then(function(appRunner) {
-                appRunner.runApp();
-              });
-            }
-          });
-        });
-    </script>
 </head>
 <body>
 <!-- 여기에 로딩 스피너 같은 CSS 애니메이션을 넣기도 하는데, 지금은 비워둬도 앱은 정상 작동합니다! -->

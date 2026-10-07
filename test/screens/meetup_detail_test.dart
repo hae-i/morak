@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:morak/locator.dart';
 import 'package:morak/models/member_model.dart';
 import 'package:morak/models/meetup_model.dart';
+import 'package:morak/models/meetup_place.dart';
 import 'package:morak/repositories/group_repository.dart';
 import 'package:morak/repositories/meetup_repository.dart';
 import 'package:morak/screens/group/meetup_detail_screen.dart';
@@ -266,6 +267,8 @@ class _Meetups extends MeetupRepository {
     required String meetDate,
     String? location,
     String? menu,
+    MeetupPlace? place,
+    bool updatePlace = false,
     required List<dynamic> photos,
     required Set<String> memberIds,
   }) async {

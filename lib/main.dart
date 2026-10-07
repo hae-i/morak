@@ -13,6 +13,7 @@ import 'repositories/user_repository.dart';
 import 'providers/home_provider.dart';
 import 'services/image_selection_recovery.dart';
 import 'services/private_photos.dart';
+import 'services/maps/naver_map_runtime.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -26,6 +27,7 @@ void main() async {
   );
 
   setupLocator();
+  await NaverMapRuntime.initialize();
   // === 수정한 내용: Android에서 중단된 사진 선택을 시작 시 보관하여 같은 작업에서 복구할 수 있게 한다 ===
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     try {

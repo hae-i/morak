@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/group_model.dart';
+import '../models/meetup_place.dart';
 import '../models/member_model.dart';
 import '../models/meetup_model.dart';
 import '../models/group_detail_data.dart';
@@ -15,6 +16,37 @@ class GroupRepository {
   GroupRepository({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
   final SupabaseClient _client;
+
+  Future<PlaceHistory> fetchPlaceHistory(String groupId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return PlaceHistory([]);
+    final rows = await readAllRows(
+      (offset, size) => _client
+          .from('meetups')
+          .select('id,title,meet_date,place')
+          .eq('group_id', groupId)
+          .not('place', 'is', null)
+          .order('meet_date', ascending: false)
+          .order('id')
+          .range(offset, offset + size - 1)
+          .count(CountOption.exact),
+    );
+    if (_client.auth.currentUser?.id != userId) {
+      throw StateError('Session changed');
+    }
+    return PlaceHistory(
+      rows.map(
+        (row) => PlaceVisit(
+          meetupId: row['id'].toString(),
+          title: row['title'] as String? ?? '함께한 만남',
+          date: row['meet_date'] as String? ?? '',
+          place: MeetupPlace.fromJson(
+            Map<String, dynamic>.from(row['place'] as Map),
+          ),
+        ),
+      ),
+    );
+  }
 
   // === 수정한 내용: 조회 제한 시간을 유지하며 탈퇴 멤버십을 현재 소속으로 취급하지 않는다 ===
   Future<Map<String, dynamic>?> fetchMyMembership(String groupId) async {

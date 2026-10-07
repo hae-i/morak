@@ -17,6 +17,9 @@ import '../../locator.dart';
 import '../../repositories/group_repository.dart';
 import '../../repositories/meetup_repository.dart';
 import '../../models/meetup_model.dart';
+import '../../models/meetup_place.dart';
+import '../../widgets/maps/places_map.dart';
+import 'place_picker_screen.dart';
 import '../../models/member_model.dart';
 import '../../utils/data_refresh.dart';
 
@@ -37,6 +40,9 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _menuController = TextEditingController();
+
+  MeetupPlace? _place;
+  bool _placeChanged = false;
 
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
@@ -62,12 +68,42 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
     if (initial != null) {
       _titleController.text = initial.title ?? '';
       _locationController.text = initial.location ?? '';
+      _place = initial.place;
       _menuController.text = initial.menu ?? '';
       _selectedDate = DateTime.tryParse(initial.date) ?? _selectedDate;
       _photos = List<dynamic>.from(initial.photos);
       _selectedMemberIds.addAll(initial.attendanceMemberIds);
     }
+    _locationController.addListener(_locationChanged);
     _loadInitialData();
+  }
+
+  void _locationChanged() {
+    if (_place != null && _locationController.text.trim() != _place!.name) {
+      setState(() {
+        _place = null;
+        _placeChanged = true;
+      });
+    }
+  }
+
+  Future<void> _pickPlace() async {
+    final place = await Navigator.push<MeetupPlace>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PlacePickerScreen(
+          groupId: widget.groupId,
+          initialQuery: _locationController.text,
+          initialPlace: _place,
+        ),
+      ),
+    );
+    if (!mounted || place == null) return;
+    setState(() {
+      _place = place;
+      _placeChanged = true;
+      _locationController.text = place.name;
+    });
   }
 
   @override
@@ -227,6 +263,8 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         meetDate: _selectedDate.toIso8601String(),
         location: location,
         menu: menu,
+        place: _place,
+        updatePlace: _placeChanged,
         photos: List<dynamic>.from(_photos),
         memberIds: Set<String>.from(_selectedMemberIds),
       );
@@ -549,6 +587,42 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
               controller: _locationController,
               hint: '예) 연남동 타코집',
             ),
+            const SizedBox(height: 12),
+            Button(
+              text: _place == null ? '장소 검색하고 지도에 표시하기' : '지도 장소 변경하기',
+              type: ButtonType.outlined,
+              icon: const Icon(Icons.map_outlined),
+              onPressed: _isLoading ? null : _pickPlace,
+            ),
+            if (_place != null) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: SizedBox(
+                  height: 200,
+                  child: PlacesMap(
+                    pins: [PlacePin(place: _place!, visits: [])],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _place!.address.isEmpty ? '지도에서 직접 선택한 장소' : _place!.address,
+                style: const TextStyle(
+                  color: AppConstants.textBody,
+                  fontSize: 13,
+                ),
+              ),
+              TextButton(
+                onPressed: _isLoading
+                    ? null
+                    : () => setState(() {
+                        _place = null;
+                        _placeChanged = true;
+                      }),
+                child: const Text('지도 위치만 지우기'),
+              ),
+            ],
             const SizedBox(height: 28),
 
             const SectionTitle('메뉴', isOptional: true),

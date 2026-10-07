@@ -23,6 +23,7 @@ import 'group_info_screen.dart';
 import 'photo_viewer_screen.dart';
 import '../../constants/app_constants.dart';
 import '../../widgets/group/member_drawer.dart';
+import '../../widgets/group/group_attendance_summary.dart';
 import '../../widgets/group/group_edit_sheets.dart';
 import '../../widgets/common/common_button.dart';
 import '../../widgets/common/request_error_view.dart';
@@ -61,7 +62,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       groupId: widget.groupId,
     );
     _detail.addListener(_onDetailChanged);
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() => setState(() {}));
     _loadAllData();
   }
@@ -341,12 +342,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       tabs: const [
                         Tab(text: '만남 기록'),
                         Tab(text: '사진첩'),
+                        Tab(text: '함께한 시간'),
                       ],
                     ),
                     Expanded(
                       child: NotificationListener<ScrollNotification>(
                         onNotification: (notification) {
-                          if (notification.metrics.axis == Axis.vertical &&
+                          if (_tabController.index != 2 &&
+                              notification.metrics.axis == Axis.vertical &&
                               notification.metrics.extentAfter < 300 &&
                               !_pageFailed) {
                             _loadMoreMeetups();
@@ -359,6 +362,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           children: [
                             _buildMeetupTab(activeColor, isDefaultColor),
                             _buildAlbumTab(activeColor, isDefaultColor),
+                            GroupAttendanceSummary(
+                              members: _rankedMembers,
+                              totalMeetups: _totalMeetups,
+                              onRefresh: () =>
+                                  _loadAllData(isSilentRefresh: true),
+                            ),
                           ],
                         ),
                       ),
@@ -530,9 +539,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                            // === 수정한 내용: 과거 출석용 탈퇴 멤버는 현재 멤버 수에서 제외한다 ===
-                            Text(
-                              '${_rankedMembers.where((m) => m.isActive).length}',
+                          // === 수정한 내용: 과거 출석용 탈퇴 멤버는 현재 멤버 수에서 제외한다 ===
+                          Text(
+                            '${_rankedMembers.where((m) => m.isActive).length}',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,

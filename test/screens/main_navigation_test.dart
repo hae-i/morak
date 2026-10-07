@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:morak/locator.dart';
 import 'package:morak/models/user_model.dart';
+import 'package:morak/models/group_model.dart';
+import 'package:morak/screens/group/group_create_screen.dart';
 import 'package:morak/repositories/group_repository.dart';
 import 'package:morak/repositories/user_repository.dart';
 import 'package:morak/screens/main_skeleton.dart';
@@ -26,7 +28,8 @@ void main() {
         detectSessionInUri: false,
       ),
     );
-    locator.registerSingleton<GroupRepository>(_Groups());
+    final groups = _Groups();
+    locator.registerSingleton<GroupRepository>(groups);
     locator.registerSingleton<UserRepository>(_Users());
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(900, 800);
@@ -44,6 +47,12 @@ void main() {
     );
     expect(nav.selectedLabelStyle, nav.unselectedLabelStyle);
     expect(nav.selectedFontSize, nav.unselectedFontSize);
+    // Creating a group from Home refreshes the already mounted My Groups tab.
+    await tester.tap(find.text('새로운 모임 만들기'));
+    await tester.pumpAndSettle();
+    groups.hasCreatedGroup = true;
+    Navigator.of(tester.element(find.byType(GroupCreateScreen))).pop(true);
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ListTile, '내 모임'));
     await tester.pumpAndSettle();
     expect(
@@ -52,6 +61,7 @@ void main() {
           .currentIndex,
       1,
     );
+    expect(find.text('New group'), findsOneWidget);
     await tester.tap(find.widgetWithText(ListTile, '마이페이지'));
     await tester.pumpAndSettle();
     expect(
@@ -88,8 +98,13 @@ void main() {
 }
 
 class _Groups extends GroupRepository {
+  bool hasCreatedGroup = false;
   @override
-  Future<List<Map<String, dynamic>>> fetchMyGroups() async => [];
+  Future<List<Map<String, dynamic>>> fetchMyGroups() async => hasCreatedGroup
+      ? [
+          {'group': GroupModel(id: 'new', name: 'New group'), 'role': 'host'},
+        ]
+      : [];
 }
 
 class _Users extends UserRepository {

@@ -13,6 +13,9 @@ class Button extends StatelessWidget {
   final Widget? icon;
   final double width;
   final double height;
+  final BorderSide? borderSide;
+  final double borderRadius;
+  final TextStyle? textStyle;
 
   const Button({
     super.key,
@@ -24,6 +27,9 @@ class Button extends StatelessWidget {
     this.icon,
     this.width = double.infinity,
     this.height = 56.0,
+    this.borderSide,
+    this.borderRadius = 16,
+    this.textStyle,
   });
 
   @override
@@ -50,11 +56,16 @@ class Button extends StatelessWidget {
           onPressed: onPressed,
           style: ButtonStyle(
             foregroundColor: WidgetStateProperty.all(effectiveTextColor),
+            backgroundColor: color == null
+                ? null
+                : WidgetStateProperty.all(effectiveColor),
             side: WidgetStateProperty.all(
-              const BorderSide(color: AppConstants.borderColor),
+              borderSide ?? const BorderSide(color: AppConstants.borderColor),
             ),
             shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
             ),
             overlayColor: overlayStyle,
             splashFactory: NoSplash.splashFactory,
@@ -75,7 +86,9 @@ class Button extends StatelessWidget {
           foregroundColor: WidgetStateProperty.all(effectiveTextColor),
           elevation: WidgetStateProperty.all(0),
           shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+            ),
           ),
           overlayColor: overlayStyle,
           splashFactory: NoSplash.splashFactory,
@@ -92,16 +105,24 @@ class Button extends StatelessWidget {
         children: [
           icon!,
           const SizedBox(width: 12),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  textStyle ??
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       );
     }
     return Text(
       text,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      style:
+          textStyle ??
+          const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
   }
 }

@@ -50,6 +50,7 @@ dependencies:
   flutter_riverpod: ^3.4.3
   go_router: ^18.0.1
   url_launcher: ^6.3.2
+  flutter_naver_map: ^1.4.4
   fluttertoast: ^10.0.0
   flutter_localizations:
     sdk: flutter
@@ -83,6 +84,7 @@ flutter:
   assets:
     - .env
     - assets/images/profile.png
+    - assets/images/google_logo.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
@@ -112,3 +114,6 @@ flutter_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#FAF6F3"
+  adaptive_icon_foreground: "assets/images/icon.png"
+  adaptive_icon_foreground_inset: 0

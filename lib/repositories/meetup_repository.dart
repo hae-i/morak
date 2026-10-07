@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/meetup_model.dart';
+import '../models/meetup_place.dart';
 import '../utils/storage_uploads.dart';
 
 class MeetupRepository {
@@ -52,6 +53,8 @@ class MeetupRepository {
     required String meetDate,
     String? location,
     String? menu,
+    MeetupPlace? place,
+    bool updatePlace = false,
     required List<dynamic> photos,
     required Set<String> memberIds,
   }) async {
@@ -81,12 +84,15 @@ class MeetupRepository {
       'location': location?.isNotEmpty == true ? location : null,
       'menu': menu?.isNotEmpty == true ? menu : null,
       'photos': finalPhotos,
+      if (updatePlace || place != null) 'place': place?.toJson(),
     };
 
     // === 수정한 내용: 만남과 출석을 단일 RPC로 저장하고 실패 시 직접 쓰기로 우회하지 않는다 ===
     await uploads.commit(
       () => _client.rpc(
-        'save_meetup_atomic',
+        updatePlace || place != null
+            ? 'save_meetup_with_place_atomic'
+            : 'save_meetup_atomic',
         params: {
           'p_meetup_id': meetupId,
           'p_meetup': meetupData,

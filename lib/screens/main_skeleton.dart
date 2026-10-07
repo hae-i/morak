@@ -26,15 +26,22 @@ class _MainSkeletonState extends State<MainSkeleton>
   // 🌟 2. 화면 전환(페이드) 애니메이션 컨트롤러 선언
   late AnimationController _fadeController;
 
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const MyGroupScreen(),
-    const MyPageScreen(),
-  ];
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    _pages = [
+      HomeScreen(
+        onGroupCreated: () {
+          if (mounted) {
+            setState(() => _pages[1] = MyGroupScreen(key: UniqueKey()));
+          }
+        },
+      ),
+      const MyGroupScreen(),
+      const MyPageScreen(),
+    ];
     // 🌟 3. 컨트롤러 초기화 (0.25초 동안 스르륵 나타나게 설정)
     _fadeController = AnimationController(
       vsync: this,

@@ -12,6 +12,7 @@ import '../../models/group_model.dart';
 import '../../widgets/group/group_edit_sheets.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/data_refresh.dart';
+import '../../widgets/group/group_places_section.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   final GroupModel groupData;
@@ -293,6 +294,11 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   ),
                 ),
               ),
+            const SizedBox(height: 32),
+            GroupPlacesSection(
+              groupId: widget.groupData.id,
+              repository: _groupRepo,
+            ),
           ],
         ),
       ),

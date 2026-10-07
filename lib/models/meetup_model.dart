@@ -1,4 +1,5 @@
 import 'group_model.dart';
+import 'meetup_place.dart';
 import 'member_model.dart';
 
 class MeetupModel {
@@ -21,6 +22,7 @@ class MeetupModel {
   final String? title;
   final String date;
   final String? location;
+  final MeetupPlace? place;
   final String? menu;
   final List<String> photos;
   final List<String> attendanceMemberIds;
@@ -37,6 +39,7 @@ class MeetupModel {
     this.title,
     required this.date,
     this.location,
+    this.place,
     this.menu,
     required this.photos,
     required this.attendanceMemberIds,
@@ -60,6 +63,11 @@ class MeetupModel {
       title: json['title'],
       date: json['meet_date'] ?? '',
       location: json['location'],
+      place: json['place'] == null
+          ? null
+          : MeetupPlace.fromJson(
+              Map<String, dynamic>.from(json['place'] as Map),
+            ),
       menu: json['menu'],
       photos: List<String>.from(json['photos'] ?? []),
       attendanceMemberIds: attendees,

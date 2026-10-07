@@ -85,6 +85,38 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         isNewSetup: true,
       );
       // === 수정한 내용: 프로필 설정 후 Router 경로와 화면을 함께 갱신하고 대기 중인 초대로 복귀한다 ===
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('모락에 오신 걸 환영해요'),
+          content: const SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('1. 모임을 만들거나 초대 링크로 참여해요.'),
+                SizedBox(height: 16),
+                Text('2. 만난 날짜와 참석자, 장소를 기록해요.'),
+                SizedBox(height: 16),
+                Text('3. 사진과 함께 그날의 추억을 돌아봐요.'),
+                SizedBox(height: 20),
+                Text(
+                  '모임 기록과 사진은 모임 멤버끼리 볼 수 있어요.',
+                  style: TextStyle(fontSize: 13, color: AppConstants.textBody),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('시작하기'),
+            ),
+          ],
+        ),
+      );
       if (mounted) context.go(destinationAfterProfile(hasProfile: true));
     } catch (e) {
       if (mounted) {

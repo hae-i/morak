@@ -1,9 +1,7 @@
-// === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
-import '../../services/private_photos.dart';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+
+import '../../widgets/meetup/meetup_story.dart';
 
 import '../../constants/app_constants.dart';
 import '../../models/meetup_model.dart';
@@ -125,12 +123,6 @@ class _MeetupDetailScreenState extends State<MeetupDetailScreen> {
             meetup.location ?? '',
             meetup.menu ?? '',
           ].where((s) => s.isNotEmpty).join(' · ');
-    final photos = meetup.photos;
-    final attendanceIds = meetup.attendanceMemberIds;
-    final attendees = groupMembers
-        .where((m) => attendanceIds.contains(m.id))
-        .toList();
-
     return Scaffold(
       backgroundColor: AppConstants.scaffoldBackground,
       appBar: AppBar(
@@ -264,127 +256,21 @@ class _MeetupDetailScreenState extends State<MeetupDetailScreen> {
                 ],
               ),
             ),
-            if (attendees.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24.0),
-                child: Text(
-                  '참석자',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppConstants.textBody,
-                    fontSize: 13,
+            MeetupStory(
+              meetup: meetup,
+              members: groupMembers,
+              onOpenPhotos: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PhotoViewerScreen(
+                    imageUrls: meetup.photos,
+                    initialIndex: 0,
+                    groupMembers: groupMembers,
+                    activeColor: activeColor,
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: attendees.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final member = attendees[index];
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppConstants.cardBackground,
-                        border: Border.all(color: AppConstants.borderColor),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        child: Text(
-                          member.displayName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: AppConstants.textTitle,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-            if (photos.isNotEmpty) ...[
-              const Divider(height: 1, color: AppConstants.dividerColor),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: MasonryGridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: photos.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PhotoViewerScreen(
-                            imageUrls: photos,
-                            initialIndex: index,
-                            groupMembers: groupMembers,
-                            activeColor: activeColor,
-                          ),
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: PrivatePhotoImage(
-                          imageUrl: photos[index],
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            height: 120,
-                            color: AppConstants.dividerColor,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: AppConstants.primaryColor,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) =>
-                              const Icon(Icons.error),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 60),
-              const Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.photo_library_outlined,
-                      size: 54,
-                      color: AppConstants.dividerColor,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      '등록된 사진이 없어요.',
-                      style: TextStyle(
-                        color: AppConstants.textCaption,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
