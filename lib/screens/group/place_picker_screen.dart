@@ -131,6 +131,10 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
       _error = null;
       _searched = false;
       _hasSearch = false;
+      _selected = null;
+      _placeName.clear();
+      _resolvingAddress = false;
+      _addressError = null;
       _results = [];
     });
     if (_query.text.trim().length >= 2 && _query.text.trim().length <= 100) {
@@ -168,12 +172,21 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
     final generation = ++_generation;
     setState(() {
       _loading = true;
+      _selected = null;
+      _placeName.clear();
+      _resolvingAddress = false;
+      _addressError = null;
       _error = null;
     });
     try {
       final currentCenter = await _readCenter?.call();
       if (!mounted || generation != _generation) return;
       final center = currentCenter ?? _center;
+      if (center == null) {
+        throw const PlaceSearchException(
+          '지도 위치를 확인하지 못했어요. 지도가 열린 후 다시 검색해 주세요.',
+        );
+      }
       final revision = _viewRevision;
       final places = await _repository.search(
         groupId: widget.groupId,
@@ -439,7 +452,9 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
 
   Widget _confirm() => Button(
     text: '이 장소 선택하기',
-    onPressed: _selected == null ? null : _confirmSelection,
+    onPressed: _selected == null || _loading || _locating
+        ? null
+        : _confirmSelection,
   );
 
   @override

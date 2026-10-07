@@ -82,8 +82,16 @@ class Button extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.all(effectiveColor),
-          foregroundColor: WidgetStateProperty.all(effectiveTextColor),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? AppConstants.dividerColor
+                : effectiveColor,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? AppConstants.textCaption
+                : effectiveTextColor,
+          ),
           elevation: WidgetStateProperty.all(0),
           padding: text.isEmpty && icon != null
               ? WidgetStateProperty.all(EdgeInsets.zero)

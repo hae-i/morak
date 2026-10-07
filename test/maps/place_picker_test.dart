@@ -71,6 +71,7 @@ void main() {
           groupId: 'group',
           repository: repository,
           fullScreen: true,
+          initialCenter: const PlaceMapCenter(37.5, 127.1),
         ),
       ),
     );
@@ -107,6 +108,7 @@ void main() {
             groupId: 'group',
             repository: repository,
             fullScreen: true,
+            initialCenter: const PlaceMapCenter(37.5, 127.1),
           ),
         ),
       );
@@ -146,6 +148,7 @@ void main() {
                   groupId: 'group',
                   repository: repository,
                   initialPlace: original,
+                  initialCenter: const PlaceMapCenter(37.5, 127.1),
                 ),
               ),
             ),
@@ -216,6 +219,7 @@ void main() {
                         initialQuery: '기존',
                         initialResults: [original],
                         initialMode: 'address',
+                        initialCenter: const PlaceMapCenter(37.5, 127.1),
                       ),
                     ),
                   ),
@@ -261,6 +265,7 @@ void main() {
           repository: _Search(),
           fullScreen: true,
           initialPlace: candidate('기존 장소'),
+          initialCenter: const PlaceMapCenter(37.5, 127.1),
         ),
       ),
     );
@@ -274,7 +279,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(fontFamily: 'AppFont'),
-          home: PlacePickerScreen(groupId: 'group', repository: _Search()),
+          home: PlacePickerScreen(
+            groupId: 'group',
+            repository: _Search(),
+            initialCenter: const PlaceMapCenter(37.5, 127.1),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -311,7 +320,11 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: PlacePickerScreen(groupId: 'group', repository: _Search()),
+          home: PlacePickerScreen(
+            groupId: 'group',
+            repository: _Search(),
+            initialCenter: const PlaceMapCenter(37.5, 127.1),
+          ),
         ),
       );
       tester.widget<PlacesMap>(find.byType(PlacesMap)).onLongPress!(
@@ -351,6 +364,7 @@ void main() {
           groupId: 'group',
           repository: _Search(),
           initialPlace: candidate('검색한 장소'),
+          initialCenter: const PlaceMapCenter(37.5, 127.1),
         ),
       ),
     );
@@ -519,6 +533,7 @@ void main() {
                         groupId: 'group',
                         repository: repository,
                         initialPlace: address,
+                        initialCenter: const PlaceMapCenter(37.5, 127.1),
                       ),
                     ),
                   ),
@@ -609,6 +624,56 @@ void main() {
       expect(tester.widget<PlacesMap>(find.byType(PlacesMap)).pins, isEmpty);
       expect(find.text('늦게 도착한 주소'), findsNothing);
       expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'confirmation is visibly disabled until a result or pin is selected',
+    (tester) async {
+      final repository = _Search();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlacePickerScreen(
+            groupId: 'group',
+            repository: repository,
+            initialCenter: const PlaceMapCenter(37.5, 127.1),
+          ),
+        ),
+      );
+      ElevatedButton confirm() => tester.widget<ElevatedButton>(
+        find.descendant(
+          of: find.widgetWithText(Button, '이 장소 선택하기'),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+      expect(confirm().onPressed, isNull);
+      final disabledColor = confirm().style!.backgroundColor!.resolve({
+        WidgetState.disabled,
+      });
+      await tester.enterText(find.byType(TextField), '카페');
+      await tester.tap(find.byTooltip('검색'));
+      await tester.pump();
+      repository.requests.single.complete([candidate('카페')]);
+      await tester.pumpAndSettle();
+      expect(confirm().onPressed, isNull);
+      await tester.tap(find.text('카페').last);
+      await tester.pumpAndSettle();
+      expect(confirm().onPressed, isNotNull);
+      expect(
+        confirm().style!.backgroundColor!.resolve({}),
+        isNot(disabledColor),
+      );
+      final searchField = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '장소 검색하기',
+      );
+      await tester.enterText(searchField, '다른 카페');
+      await tester.pump();
+      expect(confirm().onPressed, isNull);
+      tester.widget<PlacesMap>(find.byType(PlacesMap)).onLongPress!(
+        37.5,
+        127.1,
+      );
+      await tester.pumpAndSettle();
+      expect(confirm().onPressed, isNotNull);
     },
   );
 }

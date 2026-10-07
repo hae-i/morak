@@ -290,3 +290,28 @@ test('reverse lookup requires coordinates, authorization and quota before callin
   assert.equal((await handleSearch(request(body), {...deps, mapClientSecret: undefined})).status, 503);
   assert.equal(calls, 0);
 });
+
+
+test('map-scoped requests acknowledge the exact camera center and bias local queries', async () => {
+  const center = {latitude: 37.5, longitude: 127.1};
+  const response = await handleSearch(request({group_id: groupId, query: '스타벅스', mode: 'auto', scope: 'map', center}), {
+    ...defaults, mapClientId: 'map-id', mapClientSecret: 'map-secret', fetcher: async (url) => {
+      const target = new URL(String(url));
+      if (target.pathname.endsWith('/gc')) return Response.json({status: {code: 0}, results: [{region: {
+        area1: {name: '서울특별시'}, area2: {name: '송파구'}, area3: {name: '잠실동'}}}]});
+      assert.equal(target.searchParams.get('query'), '서울특별시 송파구 잠실동 스타벅스');
+      return Response.json({items: [{title: '스타벅스 잠실점', mapx: '1271000000', mapy: '375000000'}]});
+    }});
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.search_scope, 'map');
+  assert.deepEqual(data.search_center, center);
+});
+
+test('map-scoped requests without a camera center cannot silently search nationwide', async () => {
+  let calls = 0;
+  const response = await handleSearch(request({group_id: groupId, query: '스타벅스', mode: 'auto', scope: 'map'}), {
+    ...defaults, authorize: async () => {calls++; return true;}, fetcher: async () => {calls++; return Response.json({items: []});}});
+  assert.equal(response.status, 400);
+  assert.equal(calls, 0);
+});

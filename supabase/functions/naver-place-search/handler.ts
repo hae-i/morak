@@ -231,7 +231,9 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
         Math.abs(value.latitude) > 90 || Math.abs(value.longitude) > 180) return json(400, {error: 'invalid_request'});
     center = {latitude: value.latitude, longitude: value.longitude};
   }
-  if (reverse && !center) return json(400, {error: 'invalid_request'});
+  if (body.scope !== undefined && body.scope !== 'map') return json(400, {error: 'invalid_request'});
+  const mapScope = body.scope === 'map';
+  if ((reverse || mapScope) && !center) return json(400, {error: 'invalid_request'});
   try {
     if (!await deps.authorize(token, groupId)) return json(403, {error: 'access_denied'});
   } catch { return json(503, {error: 'search_unavailable'}); }
@@ -256,7 +258,8 @@ export async function handleSearch(req: Request, deps: Dependencies): Promise<Re
         warning = error instanceof SearchFailure ? error.code : 'fallback_search_unavailable';
       }
     }
-    return json(200, {items, ...(warning ? {warning} : {})});
+    return json(200, {items, ...(warning ? {warning} : {}),
+      ...(mapScope ? {search_scope: 'map', search_center: center} : {})});
   } catch (error) {
     return error instanceof SearchFailure ? json(error.status, {error: error.code}) : json(502, {error: 'search_unavailable'});
   }

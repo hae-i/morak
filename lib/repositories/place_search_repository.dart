@@ -66,6 +66,7 @@ class PlaceSearchRepository {
               'mode': mode,
               'name_only': true,
               if (center != null) 'center': center.toJson(),
+              if (center != null && mode != 'reverse') 'scope': 'map',
             },
           )
           .timeout(const Duration(seconds: 15));
@@ -107,6 +108,23 @@ class PlaceSearchRepository {
         data['items'] is! List ||
         (data['items'] as List).length > 5) {
       throw const FormatException('Invalid search response');
+    }
+    if (center != null && mode != 'reverse') {
+      final appliedCenter = data['search_center'];
+      if (data['search_scope'] != 'map' ||
+          appliedCenter is! Map ||
+          appliedCenter['latitude'] is! num ||
+          appliedCenter['longitude'] is! num ||
+          ((appliedCenter['latitude'] as num).toDouble() - center.latitude)
+                  .abs() >
+              0.000001 ||
+          ((appliedCenter['longitude'] as num).toDouble() - center.longitude)
+                  .abs() >
+              0.000001) {
+        throw const PlaceSearchException(
+          '검색 서버 업데이트가 필요해요. 최신 지도 검색 함수를 다시 배포해 주세요.',
+        );
+      }
     }
     if ((data['items'] as List).isEmpty &&
         data['warning'] == 'address_search_auth_failed') {
