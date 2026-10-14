@@ -109,7 +109,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
       backgroundColor: AppConstants.cardBackground, // 🌟 교체
       elevation: 0,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       builder: (context) => ProfileSetupSheet(
         recoveryTarget: 'group:${widget.groupId}:logo',
@@ -173,7 +173,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: AppConstants.cardBackground, // 🌟 교체
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       padding: EdgeInsets.only(
         left: 24,
@@ -217,7 +217,7 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
               width: double.infinity,
               decoration: BoxDecoration(
                 color: AppConstants.dividerColor, // 🌟 교체
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppConstants.borderColor), // 🌟 교체
                 image: _localCover != null
                     ? DecorationImage(
@@ -301,19 +301,19 @@ class _GroupEditSheetState extends State<GroupEditSheet> {
                     filled: true,
                     fillColor: AppConstants.dividerColor, // 🌟 교체
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(
                         color: AppConstants.borderColor,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(
                         color: AppConstants.borderColor,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(
                         color: AppConstants.primaryColor, // 🌟 교체
                         width: 1.5,
@@ -432,7 +432,7 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: AppConstants.cardBackground, // 🌟 교체
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       padding: EdgeInsets.only(
         left: 24,
@@ -511,15 +511,15 @@ class _GroupProfileEditSheetState extends State<GroupProfileEditSheet> {
               filled: true,
               fillColor: AppConstants.dividerColor, // 🌟 교체
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.zero,
                 borderSide: const BorderSide(color: AppConstants.borderColor),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.zero,
                 borderSide: const BorderSide(color: AppConstants.borderColor),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.zero,
                 borderSide: const BorderSide(
                   color: AppConstants.primaryColor,
                   width: 1.5,

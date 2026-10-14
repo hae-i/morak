@@ -11,13 +11,13 @@ class BirthdayField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.zero,
     child: Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: AppConstants.cardBackground,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: AppConstants.borderColor),
       ),
       child: Row(

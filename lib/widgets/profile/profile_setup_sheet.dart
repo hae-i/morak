@@ -193,7 +193,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                       color: _selectedEmoji == null
                           ? AppConstants.dividerColor
                           : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: const Icon(
                       Icons.do_not_disturb_alt_rounded,
@@ -215,7 +215,7 @@ class _ProfileSetupSheetState extends State<ProfileSetupSheet> {
                         color: _selectedEmoji == emoji
                             ? AppConstants.dividerColor
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(emoji, style: const TextStyle(fontSize: 28)),
                     ),

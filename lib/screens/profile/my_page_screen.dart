@@ -110,7 +110,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
       title: '로그아웃',
       content: '정말 로그아웃 하시겠습니까?\n언제든 다시 돌아오실 수 있어요.',
       confirmText: '로그아웃',
-      confirmColor: Colors.redAccent,
+      confirmColor: AppConstants.dangerColor,
       icon: Icons.logout_rounded,
     );
 
@@ -139,7 +139,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
       // === 수정한 내용: 탈퇴 전 방장 위임이 필요하며 다른 멤버의 기록까지 삭제된다고 안내하지 않는다 ===
       content: '계정과 개인정보가 삭제됩니다. 모임의 참석 기록과 작성 글은 탈퇴한 멤버로 남습니다.\n방장인 모임은 먼저 다른 멤버에게 위임해 주세요.',
       confirmText: '탈퇴하기',
-      confirmColor: Colors.redAccent,
+      confirmColor: AppConstants.dangerColor,
       icon: Icons.sentiment_dissatisfied_rounded,
     );
 
@@ -190,11 +190,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: BoxDecoration(
               color: AppConstants.cardBackground,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppConstants.borderColor),
+              borderRadius: BorderRadius.zero,
+              border: const Border(
+                bottom: BorderSide(color: AppConstants.borderColor),
+              ),
             ),
             child: Row(
               children: [
@@ -342,11 +344,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
     VoidCallback? onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: AppConstants.cardBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppConstants.borderColor),
+        borderRadius: BorderRadius.zero,
+        border: const Border(
+          bottom: BorderSide(color: AppConstants.borderColor),
+        ),
       ),
       // === 수정한 내용: 메뉴 타일에 투명 Material을 제공해 기존 모양을 유지하면서 잉크 렌더링 assertion을 방지한다 ===
       child: Material(
@@ -374,12 +378,10 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
             color: AppConstants.textCaption,
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 2,
+            horizontal: 0,
+            vertical: 8,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           onTap: onTap,
         ),
       ),

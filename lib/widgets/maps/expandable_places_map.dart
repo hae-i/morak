@@ -33,12 +33,12 @@ class ExpandablePlacesMap extends StatelessWidget {
         onLongPress: onLongPress,
       ),
       Positioned(
-        right: 12,
-        bottom: 12,
+        right: 0,
+        bottom: 0,
         child: Material(
           color: Colors.white,
-          elevation: 3,
-          borderRadius: BorderRadius.circular(14),
+          elevation: 0,
+          borderRadius: BorderRadius.zero,
           child: IconButton(
             tooltip: '지도 전체 화면으로 보기',
             icon: const Icon(Icons.open_in_full_rounded),

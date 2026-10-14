@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'constants/app_constants.dart';
+import 'theme/app_theme.dart';
 import 'locator.dart';
 import 'router.dart';
 import 'repositories/user_repository.dart';
@@ -148,12 +148,7 @@ class _MorakAppState extends ConsumerState<MorakApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('ko', 'KR')],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: AppConstants.primaryColor),
-        useMaterial3: true,
-        // === 수정한 내용: 모든 Material 메뉴와 버튼의 물결 효과를 전역으로 제거한다 ===
-        splashFactory: NoSplash.splashFactory,
-      ),
+      theme: AppTheme.light,
       routerConfig: router,
     );
   }

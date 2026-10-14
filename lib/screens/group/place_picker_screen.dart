@@ -394,7 +394,10 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
         contentPadding: EdgeInsets.zero,
         dense: true,
         minVerticalPadding: 2,
-        leading: const Icon(Icons.place_rounded, color: Color(0xFFE8474F)),
+        leading: const Icon(
+          Icons.place_rounded,
+          color: AppConstants.dangerColor,
+        ),
         title: Text(place.name),
         subtitle: Text(place.address),
         trailing: const Icon(Icons.chevron_right_rounded),
@@ -405,7 +408,10 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
         contentPadding: EdgeInsets.zero,
         dense: true,
         minVerticalPadding: 2,
-        leading: const Icon(Icons.place_rounded, color: Color(0xFFE8474F)),
+        leading: const Icon(
+          Icons.place_rounded,
+          color: AppConstants.dangerColor,
+        ),
         title: const Text('선택한 장소'),
         subtitle: Text(
           _selected!.address.isEmpty
@@ -487,15 +493,15 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
               ),
             ),
             Positioned(
-              left: 12,
-              right: 12,
-              bottom: inset.bottom + 8,
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: Material(
                 color: AppConstants.cardBackground,
-                elevation: 4,
-                borderRadius: BorderRadius.circular(20),
+                elevation: 0,
+                borderRadius: BorderRadius.zero,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                  padding: EdgeInsets.fromLTRB(20, 8, 20, inset.bottom + 12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

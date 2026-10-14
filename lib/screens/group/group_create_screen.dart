@@ -123,7 +123,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       backgroundColor: AppConstants.cardBackground,
       elevation: 0,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       builder: (context) => ProfileSetupSheet(
         recoveryTarget: 'group-create:logo',
@@ -283,7 +283,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                                   width: double.infinity,
                                   decoration: BoxDecoration(
                                     color: AppConstants.cardBackground,
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.zero,
                                     border: Border.all(
                                       color: AppConstants.borderColor,
                                     ),

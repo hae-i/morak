@@ -28,7 +28,7 @@ class Button extends StatelessWidget {
     this.width = double.infinity,
     this.height = 56.0,
     this.borderSide,
-    this.borderRadius = 16,
+    this.borderRadius = AppConstants.controlRadius,
     this.textStyle,
   });
 

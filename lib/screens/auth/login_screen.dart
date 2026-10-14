@@ -8,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../constants/app_constants.dart';
+import '../../utils/color_utils.dart';
 import '../../widgets/common/common_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -132,26 +133,29 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Expanded(
-                              child: Image.asset(
-                                _introData[index]['image']!,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: AppConstants.borderColor,
+                              child: ColorFiltered(
+                                colorFilter: ColorUtils.illustrationFilter,
+                                child: Image.asset(
+                                  _introData[index]['image']!,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.zero,
+                                          border: Border.all(
+                                            color: AppConstants.borderColor,
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.image_outlined,
+                                            size: 64,
+                                            color: AppConstants.textCaption,
+                                          ),
                                         ),
                                       ),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.image_outlined,
-                                          size: 64,
-                                          color: AppConstants.textCaption,
-                                        ),
-                                      ),
-                                    ),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 48),
@@ -221,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.g_mobiledata_rounded,
                         size: 32,
-                        color: Colors.blue,
+                        color: AppConstants.highlightColor,
                       ),
                     ),
                   ),

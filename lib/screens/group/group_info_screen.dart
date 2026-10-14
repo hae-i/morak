@@ -65,7 +65,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       title: '모임 삭제',
       content: '정말 이 모임을 삭제할까요?\n모든 기록이 함께 사라집니다.',
       confirmText: '삭제하기',
-      confirmColor: Colors.redAccent,
+      confirmColor: AppConstants.dangerColor,
       icon: Icons.delete_forever_rounded,
     );
     if (confirm == true) {
@@ -106,7 +106,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = ColorUtils.stringToColor(widget.groupData.themeColor);
+    final activeColor = ColorUtils.displayThemeColor(
+      widget.groupData.themeColor,
+    );
     final isDefaultColor = activeColor == Colors.grey[200]!;
     final coverUrl = widget.groupData.coverImageUrl;
     final logoUrl = widget.groupData.logoImageUrl;
@@ -144,8 +146,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     : (isDefaultColor
                           ? Colors.grey[100]
                           : activeColor.withOpacity(0.12)),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
+                borderRadius: BorderRadius.zero,
+                border: const Border(
+                  bottom: BorderSide(color: AppConstants.borderColor),
+                ),
                 image: coverUrl != null
                     ? DecorationImage(
                         image: privatePhoto(coverUrl),
@@ -164,13 +168,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    boxShadow: const [],
                     image: logoUrl != null
                         ? DecorationImage(
                             image: privatePhoto(logoUrl),
@@ -214,8 +212,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: AppConstants.cardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppConstants.borderColor),
+                  borderRadius: BorderRadius.zero,
+                  border: const Border(
+                    bottom: BorderSide(color: AppConstants.borderColor),
+                  ),
                 ),
                 // === 수정한 내용: 설정 메뉴의 배경 위에 Material을 제공해 실제 화면 진입 시 assertion을 막는다 ===
                 child: Material(
@@ -231,7 +231,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: const Icon(
                             Icons.edit_rounded,
@@ -267,19 +267,19 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           leading: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(10),
+                              color: AppConstants.dangerBackground,
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Icon(
                               Icons.delete_outline_rounded,
-                              color: Colors.redAccent,
+                              color: AppConstants.dangerColor,
                               size: 20,
                             ),
                           ),
                           title: const Text(
                             '모임 삭제하기',
                             style: TextStyle(
-                              color: Colors.redAccent,
+                              color: AppConstants.dangerColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                             ),

@@ -18,7 +18,7 @@ class FeedCard extends StatelessWidget {
     final group = feed.group;
     final groupName = group?.name ?? '알 수 없는 모임';
     final emoji = group?.themeEmoji ?? '☁️';
-    final themeColor = ColorUtils.stringToColor(group?.themeColor);
+    final themeColor = ColorUtils.displayThemeColor(group?.themeColor);
 
     final rawDate = feed.date;
     String formattedDate = '';
@@ -39,17 +39,19 @@ class FeedCard extends StatelessWidget {
     final imageUrl = photos.isNotEmpty ? photos.first : null;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: AppConstants.cardBackground, // 🌟 교체
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppConstants.borderColor), // 🌟 교체
+        borderRadius: BorderRadius.zero,
+        border: const Border(
+          bottom: BorderSide(color: AppConstants.borderColor),
+        ), // 🌟 교체
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
             child: Row(
               children: [
                 Container(

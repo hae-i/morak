@@ -241,7 +241,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                           vertical: 8,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                     )
@@ -272,7 +272,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
                         vertical: 8,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.zero,
                       ),
                     ),
                   ),

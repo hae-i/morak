@@ -89,7 +89,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
             fillColor: AppConstants.cardBackground,
             contentPadding: const EdgeInsets.all(16),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
               borderSide: const BorderSide(color: AppConstants.borderColor),
             ),
           ),

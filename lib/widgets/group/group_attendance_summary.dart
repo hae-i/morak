@@ -58,7 +58,7 @@ class GroupAttendanceSummary extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppConstants.cardBackground,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

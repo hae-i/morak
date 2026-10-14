@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../models/meetup_place.dart';
+import '../../constants/app_constants.dart';
 import '../../models/place_map_center.dart';
 import '../../services/maps/naver_map_runtime.dart';
 import 'map_unavailable.dart';
@@ -86,6 +87,7 @@ class _PlacesMapState extends State<PlacesMap> {
               icon: const NOverlayImage.fromAssetImage(
                 'assets/images/map_pin.png',
               ),
+              iconTintColor: AppConstants.dangerColor,
               size: const Size(32, 44),
               anchor: const NPoint(0.5, 1),
             );

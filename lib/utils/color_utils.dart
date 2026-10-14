@@ -1,8 +1,49 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_constants.dart';
+
 class ColorUtils {
+  // Keep the original illustration geometry and alpha while softening its colors.
+  static const illustrationFilter = ColorFilter.matrix([
+    0.44882,
+    0.50064,
+    0.05054,
+    0,
+    0,
+    0.14882,
+    0.80064,
+    0.05054,
+    0,
+    0,
+    0.14882,
+    0.50064,
+    0.35054,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ]);
+
+  /// Muting is for display only; parsing/serialization preserve stored colors.
+  static Color muted(Color color) {
+    final hsl = HSLColor.fromColor(color);
+    return hsl.withSaturation(hsl.saturation.clamp(0, 0.14)).toColor();
+  }
+
+  static Color displayThemeColor(String? colorString) =>
+      muted(stringToColor(colorString));
+
   static Color getTextColor(Color bg) {
-    return bg.computeLuminance() > 0.6 ? Colors.grey[800]! : Colors.white;
+    final luminance = bg.computeLuminance();
+    final darkContrast =
+        (luminance + 0.05) / (AppConstants.textTitle.computeLuminance() + 0.05);
+    final lightContrast = 1.05 / (luminance + 0.05);
+    return darkContrast >= lightContrast
+        ? AppConstants.textTitle
+        : Colors.white;
   }
 
   static Color stringToColor(String? colorString) {

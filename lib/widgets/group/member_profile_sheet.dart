@@ -1,3 +1,4 @@
+import '../../constants/app_constants.dart';
 // === 수정한 내용: 저장된 모임·프로필 사진을 로그인 권한으로 조회한다 ===
 import '../../services/private_photos.dart';
 
@@ -113,7 +114,7 @@ class MemberProfileSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -156,7 +157,7 @@ class MemberProfileSheet extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.indigo,
+                          color: AppConstants.highlightColor,
                         ),
                       ),
                     ],

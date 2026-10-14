@@ -18,18 +18,20 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final groupColor = ColorUtils.stringToColor(group.themeColor);
+    final groupColor = ColorUtils.displayThemeColor(group.themeColor);
     final isDefaultColor = groupColor == Colors.grey[200]!;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.zero,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
           color: AppConstants.cardBackground, // 🌟 교체
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppConstants.borderColor), // 🌟 교체
+          borderRadius: BorderRadius.zero,
+          border: const Border(
+            bottom: BorderSide(color: AppConstants.borderColor),
+          ), // 🌟 교체
         ),
         child: Row(
           children: [
@@ -83,7 +85,7 @@ class GroupCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange[50], // 방장 뱃지는 오렌지색 그대로 유지
+                            color: AppConstants.secondaryColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -91,7 +93,7 @@ class GroupCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Colors.orange[800],
+                              color: AppConstants.textBody,
                             ),
                           ),
                         ),

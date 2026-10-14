@@ -153,9 +153,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
         DateTime tempDate = _selectedDate;
         return Dialog(
           backgroundColor: AppConstants.cardBackground,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -328,13 +326,13 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
           border: isRepresentative
               ? Border.all(color: AppConstants.primaryColor, width: 2)
               : Border.all(color: AppConstants.borderColor),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.zero,
         ),
         child: Stack(
           children: [
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(isRepresentative ? 12 : 13),
+                borderRadius: BorderRadius.zero,
                 child: item is String
                     ? PrivatePhotoImage(
                         imageUrl: item,
@@ -386,8 +384,8 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                   decoration: const BoxDecoration(
                     color: AppConstants.primaryColor,
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(8),
+                      topLeft: Radius.zero,
+                      bottomRight: Radius.zero,
                     ),
                   ),
                   child: const Text(
@@ -447,7 +445,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             const SizedBox(height: 12),
             InkWell(
               onTap: _pickDate,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.zero,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -455,7 +453,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: AppConstants.cardBackground,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.zero,
                   border: Border.all(color: AppConstants.borderColor),
                 ),
                 child: Row(
@@ -522,7 +520,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                         backgroundColor: AppConstants.cardBackground,
                         showCheckmark: false,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.zero,
                           side: BorderSide(
                             color: isSelected
                                 ? AppConstants.primaryColor
@@ -556,14 +554,14 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
                 children: [
                   InkWell(
                     onTap: _pickImages,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.zero,
                     child: Container(
                       width: 86,
                       height: 86,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
                         color: AppConstants.cardBackground,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.zero,
                         border: Border.all(color: AppConstants.borderColor),
                       ),
                       child: Column(
@@ -611,7 +609,7 @@ class _MeetupCreateScreenState extends State<MeetupCreateScreen> {
             if (_place != null) ...[
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.zero,
                 child: SizedBox(
                   height: 280,
                   child: ExpandablePlacesMap(

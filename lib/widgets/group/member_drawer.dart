@@ -233,7 +233,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                     offset: const Offset(0, 30),
                     color: AppConstants.cardBackground,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -242,7 +242,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                       ),
                       decoration: BoxDecoration(
                         color: AppConstants.dividerColor,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.zero,
                         border: Border.all(color: AppConstants.borderColor),
                       ),
                       child: Row(
@@ -355,7 +355,7 @@ class _MemberDrawerState extends State<MemberDrawer> {
                                           AppConstants.cardBackground,
                                       shape: const RoundedRectangleBorder(
                                         borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(24),
+                                          top: Radius.zero,
                                         ),
                                       ),
                                       builder: (context) => MemberManageSheet(

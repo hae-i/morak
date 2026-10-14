@@ -201,7 +201,7 @@ class _MeetupDetailScreenState extends State<MeetupDetailScreen> {
                           backgroundColor: AppConstants.cardBackground,
                           shape: const RoundedRectangleBorder(
                             borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(24),
+                              top: Radius.zero,
                             ),
                           ),
                           builder: (context) => SafeArea(

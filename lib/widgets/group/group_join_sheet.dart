@@ -145,7 +145,7 @@ class _GroupJoinSheetState extends State<GroupJoinSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: AppConstants.cardBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       padding: EdgeInsets.only(
         left: 24,

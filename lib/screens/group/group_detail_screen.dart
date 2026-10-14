@@ -205,7 +205,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       builder: (context) => MemberProfileSheet(
         member: member,
@@ -246,7 +246,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         ),
       );
     }
-    final activeColor = ColorUtils.stringToColor(_group!.themeColor);
+    final activeColor = ColorUtils.displayThemeColor(_group!.themeColor);
     final isDefaultColor = activeColor == Colors.grey[200]!;
     final isWideScreen = MediaQuery.of(context).size.width > 600;
     final memberDrawerWidget = MemberDrawer(
@@ -412,7 +412,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     final isWideScreen = MediaQuery.of(context).size.width > 600;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         height: 120,
         decoration: BoxDecoration(
@@ -421,7 +421,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               : (isDefaultColor
                     ? Colors.grey[150]
                     : activeColor.withOpacity(0.12)),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.zero,
           image: hasCover
               ? DecorationImage(
                   image: privatePhoto(_group!.coverImageUrl!),
@@ -431,7 +431,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         ),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.zero,
             gradient: hasCover
                 ? const LinearGradient(
                     colors: [Colors.black45, Colors.black45],
@@ -458,13 +458,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             fit: BoxFit.cover,
                           )
                         : null,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: const [],
                   ),
                   child: hasLogo
                       ? null
@@ -677,8 +671,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             color: hasPhoto
                                 ? Colors.black
                                 : AppConstants.cardBackground,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppConstants.borderColor),
+                            borderRadius: BorderRadius.zero,
+                            border: const Border(
+                              bottom: BorderSide(
+                                color: AppConstants.borderColor,
+                              ),
+                            ),
                             image: hasPhoto
                                 ? DecorationImage(
                                     image: privatePhoto(bgImageUrl!),
@@ -834,9 +832,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           if (mounted) _loadAllData(isSilentRefresh: true);
                         },
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ), // 모서리 라운드 살짝 줄여서 세련되게
+                          borderRadius: BorderRadius.zero,
                           child: PrivatePhotoImage(
                             imageUrl: imageUrls[index],
                             fit: BoxFit.cover,

@@ -38,11 +38,13 @@ class MeetupStory extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: BoxDecoration(
               color: AppConstants.cardBackground,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppConstants.borderColor),
+              borderRadius: BorderRadius.zero,
+              border: const Border(
+                bottom: BorderSide(color: AppConstants.borderColor),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +115,7 @@ class MeetupStory extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.zero,
               child: SizedBox(
                 height: 220,
                 child: PlacesMap(
@@ -142,9 +144,9 @@ class MeetupStory extends StatelessWidget {
               label: '만남 사진 ${meetup.photos.length}장 보기',
               child: InkWell(
                 onTap: onOpenPhotos,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.zero,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.zero,
                   child: AspectRatio(
                     aspectRatio: 4 / 3,
                     child: PrivatePhotoImage(
@@ -175,10 +177,10 @@ class MeetupStory extends StatelessWidget {
           ] else
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
                 color: AppConstants.secondaryColor.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Column(
                 children: [

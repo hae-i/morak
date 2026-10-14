@@ -143,7 +143,7 @@ class _GroupPlacesSectionState extends State<GroupPlacesSection> {
         ),
         const SizedBox(height: 12),
         ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.zero,
           child: SizedBox(
             height: 260,
             child: PlacesMap(pins: filtered.pins, onPinTap: _showVisits),

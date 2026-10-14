@@ -36,7 +36,7 @@ class UiUtils {
       context: context,
       builder: (context) => Dialog(
         backgroundColor: AppConstants.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         elevation: 0,
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -108,7 +108,7 @@ class UiUtils {
       context: context,
       builder: (context) => Dialog(
         backgroundColor: AppConstants.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -164,7 +164,7 @@ class UiUtils {
       context: context,
       backgroundColor: AppConstants.cardBackground,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
       ),
       builder: (context) => SafeArea(
         child: Padding(
